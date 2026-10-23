@@ -108,8 +108,8 @@ function renderContent(container, data) {
             </div>
             <div style="flex:1;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-                <h4 style="font-size:14px; font-weight:800; margin:0; color:${b.unlocked ? 'var(--text-main)' : 'var(--text-muted)'};">
-                  ${b.title}
+                <h4 style="font-size:14px; font-weight:800; margin:0; color:${b?.unlocked ? 'var(--text-main)' : 'var(--text-muted)'};">
+                  ${b?.title || 'Марапат'}
                 </h4>
                 <span class="badge" style="font-size:10px; background:${b.unlocked ? '#dcfce7' : 'var(--bg-soft)'}; color:${b.unlocked ? '#166534' : 'var(--text-muted)'};">
                   ${b.unlocked ? '✓ Ашылды' : '🔒 Құлып'}
