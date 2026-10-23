@@ -79,7 +79,7 @@ export async function renderMissionView(container) {
       `;
     }
 
-    const mainMission = missions[0];
+    const mainMission = missions[0] || { title: 'Ортақ сынып миссиясы', percent: 0, progress: 0, target: 50, remaining: 50, mine: 0 };
     const pct = mainMission.percent || 0;
 
     let gardenIcons = '🌱';
@@ -92,13 +92,13 @@ export async function renderMissionView(container) {
       <!-- Виртуалды «Білім бағы» көрінісі -->
       <div class="garden-container">
         <div style="font-size:14px; font-weight:700; color:#065f46; margin-bottom:6px; text-transform:uppercase;">
-          ${mainMission.title}
+          ${mainMission.title || 'Ортақ сынып миссиясы'}
         </div>
         <div class="garden-visual">
           ${gardenIcons}
         </div>
         <div style="font-size:18px; font-weight:800; color:#14213d; margin-bottom:8px;">
-          ${mainMission.progress} / ${mainMission.target} үлес жиналды (${pct}%)
+          ${mainMission.progress || 0} / ${mainMission.target || 50} үлес жиналды (${pct}%)
         </div>
         <div style="width:80%; max-width:400px;">
           <div class="progress-bar-wrap" style="height:14px;">
@@ -109,11 +109,11 @@ export async function renderMissionView(container) {
         <div class="garden-stats">
           <div class="garden-stat-item">
             <div style="color:var(--text-muted); font-size:11px;">СЫНЫП МАҚСАТЫ</div>
-            <div style="color:var(--primary-green); font-size:18px;">${mainMission.target}</div>
+            <div style="color:var(--primary-green); font-size:18px;">${mainMission.target || 50}</div>
           </div>
           <div class="garden-stat-item">
             <div style="color:var(--text-muted); font-size:11px;">ҚАЛҒАНЫ</div>
-            <div style="color:var(--accent-gold-dark); font-size:18px;">${mainMission.remaining}</div>
+            <div style="color:var(--accent-gold-dark); font-size:18px;">${mainMission.remaining || 0}</div>
           </div>
           <div class="garden-stat-item" style="border:2px solid #16a34a;">
             <div style="color:var(--text-muted); font-size:11px;">СЕНІҢ ҮЛЕСІҢ ⭐</div>
@@ -138,8 +138,8 @@ export async function renderMissionView(container) {
             ${missions.slice(1).map(m => `
               <div style="background:var(--bg-soft); padding:12px 16px; border-radius:var(--radius-sm);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                  <strong>${m.title}</strong>
-                  <span>${m.progress} / ${m.target} (${m.percent}%)</span>
+                  <strong>${m?.title || 'Миссия'}</strong>
+                  <span>${m?.progress || 0} / ${m?.target || 0} (${m?.percent || 0}%)</span>
                 </div>
                 <div class="progress-bar-wrap">
                   <div class="progress-bar-fill" style="width:${m.percent}%;"></div>

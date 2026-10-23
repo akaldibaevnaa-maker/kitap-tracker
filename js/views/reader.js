@@ -34,9 +34,9 @@ function renderContent(container, data, bookId, chapterIdx) {
     <div class="card" style="padding: 30px 24px; max-width:760px; margin:0 auto 24px auto;">
       <div style="border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:20px;">
         <div style="font-size:13px; color:var(--primary-green); font-weight:700; text-transform:uppercase;">
-          ${book.title} • ${chapter.page_start}-${chapter.page_end} беттер
+          ${book?.title || 'Кітап'} • ${chapter?.page_start || 1}-${chapter?.page_end || 1} беттер
         </div>
-        <h2 style="font-size:24px; font-weight:800; margin-top:4px;">${chapter.title}</h2>
+        <h2 style="font-size:24px; font-weight:800; margin-top:4px;">${chapter?.title || 'Бөлім'}</h2>
       </div>
 
       <div style="font-size:17px; line-height:1.75; color:#1f2937; white-space:pre-line; font-family:Georgia, serif;">

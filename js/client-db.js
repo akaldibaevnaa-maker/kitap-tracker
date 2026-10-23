@@ -1,16 +1,16 @@
 // Client database for Standalone / GitHub Pages execution
 import { CLIENT_DATA } from './client-data.js';
 
-const STORAGE_KEY = 'kt_standalone_db_v1';
+const STORAGE_KEY = 'kt_standalone_db_v2';
 
 function getDefaultState() {
   const books = CLIENT_DATA.books || [];
   
-  const bKoja = books.find(b => b.title.includes('Қожа')) || books[1];
-  const bPrince = books.find(b => b.title.includes('ханзада')) || books[2];
-  const bShahanov = books.find(b => b.title.includes('Өркениет')) || books[8];
-  const bBulaq = books[0];
-  const bAbay = books.find(b => b.title.includes('Абай жолы')) || books[9];
+  const bKoja = books.find(b => b?.title?.includes('Қожа')) || books[1] || books[0];
+  const bPrince = books.find(b => b?.title?.includes('ханзада')) || books[2] || books[0];
+  const bShahanov = books.find(b => b?.title?.includes('Өркениет')) || books[8] || books[0];
+  const bBulaq = books[0] || { id: 1, title: 'Ұмытылған бұлақ', author: 'Қазақ балалар әдебиеті', cover_color: '#2e7d5b', cover_emoji: '💧', total_pages: 10 };
+  const bAbay = books.find(b => b?.title?.includes('Абай жолы')) || books[9] || books[0];
 
   return {
     currentUser: {
@@ -230,6 +230,9 @@ class ClientDb {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       this.state = raw ? JSON.parse(raw) : getDefaultState();
+      if (!this.state || !this.state.currentUser || !Array.isArray(this.state.shelf) || this.state.shelf.length === 0) {
+        this.state = getDefaultState();
+      }
     } catch {
       this.state = getDefaultState();
     }
@@ -526,10 +529,20 @@ class ClientDb {
     }
 
     if (path === '/api/world') {
-      const curShelf = this.state.shelf.find(s => s.status === 'reading') || this.state.shelf[0];
-      const curBook = curShelf ? this.books.find(b => b.id === curShelf.book_id) : (this.books[0] || null);
+      const curShelf = (this.state.shelf || []).find(s => s.status === 'reading') || (this.state.shelf || [])[0] || null;
+      const foundBook = curShelf ? this.books.find(b => Number(b.id) === Number(curShelf.book_id)) : null;
+      const curBook = foundBook || this.books[0] || {
+        id: 1,
+        title: 'Ұмытылған бұлақ',
+        author: 'Қазақ балалар әдебиеті',
+        cover_color: '#2e7d5b',
+        cover_emoji: '💧',
+        total_pages: 10,
+        has_text: true
+      };
+      const safeShelf = curShelf || { current_page: 6, total_pages: curBook.total_pages || 10, percent: 60 };
       return {
-        current: curBook ? { book: curBook, shelf: curShelf } : null,
+        current: { book: curBook, shelf: safeShelf },
         journey: { current: 3, stages: [1, 2, 3, 4, 5].map(i => ({ no: i, status: i < 3 ? 'done' : (i === 3 ? 'current' : 'locked') })) },
         next: { kind: 'read', page: 8, title: 'Кітапты оқу' },
         today: { minutes: this.state.currentUser?.daily_minutes || 15, logged: true },
@@ -889,7 +902,15 @@ class ClientDb {
     }
 
     if (path === '/api/play') {
-      const curBook = this.books.find(b => b.id === 1) || this.books[0];
+      const readingShelf = (this.state.shelf || []).find(s => s.status === 'reading') || (this.state.shelf || [])[0] || null;
+      const foundBook = readingShelf ? this.books.find(b => Number(b.id) === Number(readingShelf.book_id)) : null;
+      const curBook = foundBook || this.books[0] || {
+        id: 1,
+        title: 'Ұмытылған бұлақ',
+        author: 'Қазақ балалар әдебиеті',
+        cover_color: '#2e7d5b',
+        cover_emoji: '💧'
+      };
       const tasks = this.tasks || [];
       const prog = this.state.task_progress || {};
 
@@ -900,7 +921,7 @@ class ClientDb {
         return {
           id: t.id,
           type: t.type,
-          title: t.title,
+          title: t.title || 'Ойын тапсырмасы',
           stage_no: t.stage_no,
           unlocked: isUnlocked,
           done: isDone,
@@ -914,10 +935,10 @@ class ClientDb {
           {
             book: {
               id: curBook.id,
-              title: curBook.title,
-              author: curBook.author,
-              cover_color: curBook.cover_color,
-              cover_emoji: curBook.cover_emoji
+              title: curBook.title || 'Ұмытылған бұлақ',
+              author: curBook.author || 'Қазақ балалар әдебиеті',
+              cover_color: curBook.cover_color || '#2e7d5b',
+              cover_emoji: curBook.cover_emoji || '💧'
             },
             started: true,
             current_stage: 3,
@@ -932,9 +953,9 @@ class ClientDb {
     const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
     if (taskMatch && method === 'GET') {
       const taskId = Number(taskMatch[1]);
-      const task = (this.tasks || []).find(t => t.id === taskId);
+      const task = (this.tasks || []).find(t => t.id === taskId) || (this.tasks || [])[0];
       if (!task) throw new Error('task_not_found');
-      const curBook = this.books.find(b => b.id === task.book_id) || this.books[0];
+      const curBook = this.books.find(b => Number(b.id) === Number(task.book_id)) || this.books[0] || { id: 1, title: 'Ұмытылған бұлақ' };
       const prog = (this.state.task_progress || {})[taskId] || { tries: 0, completed: 0, wrong_streak: 0 };
       const resp = (this.state.task_responses || {})[taskId] || null;
 
@@ -944,17 +965,17 @@ class ClientDb {
           book_id: task.book_id,
           type: task.type,
           stage_no: task.stage_no,
-          title: task.title,
-          instruction: task.instruction,
-          example: task.example,
-          source_chapter: task.source_chapter,
-          source_excerpt: task.source_excerpt,
+          title: task.title || 'Ойын тапсырмасы',
+          instruction: task.instruction || '',
+          example: task.example || '',
+          source_chapter: task.source_chapter || null,
+          source_excerpt: task.source_excerpt || null,
           payload: task.payload || {},
           status: 'published'
         },
         book: {
           id: curBook.id,
-          title: curBook.title,
+          title: curBook.title || 'Ұмытылған бұлақ',
           is_demo: false
         },
         state: {
