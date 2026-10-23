@@ -1,0 +1,1404 @@
+/* KitapTracker негізгі стильдері */
+:root {
+  --bg-color: #fdfcf7;
+  --bg-card: #ffffff;
+  --bg-soft: #f4efe6;
+  --text-main: #14213d;
+  --text-muted: #5c6b73;
+  --primary-green: #2d6a4f;
+  --primary-green-light: #e8f5e9;
+  --accent-gold: #d4a373;
+  --accent-gold-dark: #b07d4b;
+  --border-color: #e2dcd2;
+  --danger-color: #d90429;
+  --success-color: #38b000;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 6px 18px -4px rgba(20, 33, 61, 0.07), 0 4px 8px -2px rgba(20, 33, 61, 0.04);
+  --shadow-lg: 0 12px 28px -6px rgba(20, 33, 61, 0.10), 0 8px 12px -4px rgba(20, 33, 61, 0.05);
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body.reduce-motion * {
+  animation: none !important;
+  transition: none !important;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Қазақы ою сәні (SVG border) */
+.ornament-header {
+  height: 6px;
+  background: repeating-linear-gradient(45deg, var(--primary-green), var(--primary-green) 10px, var(--accent-gold) 10px, var(--accent-gold) 20px);
+}
+
+/* Бас тақырып және жоғарғы навигация */
+header.app-header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-main);
+}
+
+.brand-icon {
+  font-size: 28px;
+  background: var(--bg-soft);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--primary-green);
+  letter-spacing: -0.5px;
+}
+
+.brand-tagline {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .brand-tagline {
+    display: block;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Негізгі навигация (компьютерлік және мобильді) */
+nav.desktop-nav {
+  display: none;
+}
+
+@media (min-width: 840px) {
+  nav.desktop-nav {
+    display: flex;
+    gap: 6px;
+  }
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-link:hover {
+  background: var(--bg-soft);
+}
+
+.nav-link.active {
+  background: var(--primary-green);
+  color: #ffffff;
+}
+
+/* Мобильді төменгі мәзір */
+nav.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 0;
+  z-index: 100;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+@media (min-width: 840px) {
+  nav.mobile-nav {
+    display: none;
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.mobile-nav-item.active {
+  color: var(--primary-green);
+}
+
+.mobile-nav-item .icon {
+  font-size: 20px;
+}
+
+/* Контейнер */
+main.main-content {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 16px 80px 16px;
+}
+
+@media (min-width: 840px) {
+  main.main-content {
+    padding-bottom: 40px;
+  }
+}
+
+/* Демо хабарландыру */
+.demo-banner {
+  background: #fff8e7;
+  border: 1px solid #ffe29a;
+  color: #8c5700;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Карточкалар */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Батырмалар: Ірі және түсінікті */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-primary {
+  background: var(--primary-green);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #23553e;
+}
+
+.btn-accent {
+  background: var(--accent-gold);
+  color: #ffffff;
+}
+
+.btn-accent:hover {
+  background: var(--accent-gold-dark);
+}
+
+.btn-secondary {
+  background: var(--bg-soft);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: #eae3d5;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* 3 сұрақ блогы: Менің әлемім */
+.three-questions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 768px) {
+  .three-questions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.question-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-top: 4px solid var(--primary-green);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.question-box:nth-child(2) {
+  border-top-color: var(--accent-gold);
+}
+
+.question-box:nth-child(3) {
+  border-top-color: #3b82f6;
+}
+
+.question-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.question-content {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Саяхат картасы (5 кезең) */
+.journey-map {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (min-width: 680px) {
+  .journey-map {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.stage-step {
+  flex: 1;
+  background: var(--bg-soft);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  position: relative;
+  text-align: center;
+}
+
+.stage-step.done {
+  border-color: var(--success-color);
+  background: #f0fdf4;
+}
+
+.stage-step.current {
+  border-color: var(--accent-gold);
+  background: #fffdf5;
+  box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.25);
+}
+
+.stage-step.locked {
+  opacity: 0.6;
+  background: #f5f5f5;
+}
+
+.stage-num {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stage-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.stage-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stage-step.done .stage-badge {
+  background: var(--success-color);
+  color: #fff;
+}
+
+.stage-step.current .stage-badge {
+  background: var(--accent-gold);
+  color: #fff;
+}
+
+.stage-step.locked .stage-badge {
+  background: #ccc;
+  color: #555;
+}
+
+/* Кітап сөресі */
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.book-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.book-cover {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  color: #ffffff;
+  position: relative;
+}
+
+.book-info {
+  padding: 14px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.book-author {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.book-desc {
+  font-size: 12px;
+  color: #4a5568;
+  margin-bottom: 12px;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.book-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.badge {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Прогресс бар */
+.progress-bar-wrap {
+  background: #e2e8f0;
+  border-radius: 10px;
+  height: 10px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.progress-bar-fill {
+  background: var(--primary-green);
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+/* Ойын алаңы */
+.game-task-box {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.game-instruction-banner {
+  background: #f0f7f4;
+  border-left: 4px solid var(--primary-green);
+  padding: 12px 16px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.game-instruction-banner .example {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Тізбек ойыны (сүйреу немесе батырмалар) */
+.sequence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.sequence-item {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: grab;
+}
+
+.sequence-item .text {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.sequence-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-arrow {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-arrow:hover {
+  background: #e5e5e5;
+}
+
+/* Кері байланыс қадамдары */
+.feedback-box {
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  margin-top: 16px;
+  font-size: 15px;
+}
+
+.feedback-box.correct {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.feedback-box.retry {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.feedback-hint {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.feedback-explanation {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Виртуалды «Білім бағы» */
+.garden-container {
+  background: linear-gradient(180deg, #e0f2fe 0%, #dcfce7 60%, #bbf7d0 100%);
+  border-radius: var(--radius-lg);
+  padding: 30px 20px;
+  text-align: center;
+  border: 1px solid #bae6fd;
+  margin-bottom: 20px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.garden-visual {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.garden-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.garden-stat-item {
+  background: rgba(255, 255, 255, 0.85);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Модальді терезе */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-card {
+  background: var(--bg-card);
+  max-width: 520px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Формалар */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: var(--text-main);
+}
+
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.15);
+}
+
+.form-help {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Toast хабарламасы */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast.toast-success {
+  background: #15803d;
+}
+
+.toast.toast-error {
+  background: #b91c1c;
+}
+
+/* Жоба төлқұжаты және Авторлық белгі */
+.project-attribution-card {
+  background: #ffffff;
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: 0 2px 8px rgba(212, 160, 23, 0.12);
+}
+
+.project-attribution-card .project-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.project-attribution-card .project-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Сайттың төменгі аймағы (Footer) */
+.app-footer {
+  background: #ffffff;
+  border-top: 1px solid var(--border-color);
+  margin-top: 48px;
+  padding: 28px 16px 80px 16px;
+}
+
+.footer-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.footer-badge {
+  display: inline-block;
+  background: #e8f5e9;
+  color: var(--primary-green);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  border: 1px solid #c8e6c9;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.footer-col .footer-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.footer-col .footer-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.footer-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Жаңа компоненттер: Streak, Crystals, Leaderboard, Badges & Animations
+   ========================================================================== */
+
+/* Күнделікті оқу сериясы (Daily Streak 🔥) */
+.streak-card {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.08);
+}
+
+.streak-flame-icon {
+  font-size: 32px;
+  display: inline-block;
+  animation: fireGlow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes fireGlow {
+  0% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.4)); }
+  100% { transform: scale(1.15) rotate(3deg); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7)); }
+}
+
+.badge-streak {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Кристалдар көрсеткіші (Crystals 💎) */
+.badge-crystal {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Сынып көшбасшылар тақтасы (Leaderboard) */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.leaderboard-row {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.leaderboard-row:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.leaderboard-row.is-me {
+  background: #f0fdf4;
+  border: 2px solid var(--primary-green);
+}
+
+.leaderboard-cell {
+  padding: 12px 14px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.podium-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.podium-rank.rank-1 {
+  background: #fef08a;
+  color: #854d0e;
+  border: 2px solid #eab308;
+  box-shadow: 0 2px 8px rgba(234, 179, 8, 0.3);
+}
+
+.podium-rank.rank-2 {
+  background: #e2e8f0;
+  color: #334155;
+  border: 2px solid #94a3b8;
+}
+
+.podium-rank.rank-3 {
+  background: #fed7aa;
+  color: #9a3412;
+  border: 2px solid #f97316;
+}
+
+/* Сөредегі бос экран ұсыныс карточкалары */
+.empty-starter-shelf {
+  background: linear-gradient(135deg, #ffffff 0%, #fbfaf8 100%);
+  border: 1px dashed var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 24px 20px;
+  margin-top: 20px;
+}
+
+.starter-book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.starter-book-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.starter-book-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Кеңейтілген жетістіктер карточкалары */
+.rich-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.rich-badge-card {
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  transition: all 0.2s ease;
+}
+
+.rich-badge-card.unlocked {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.rich-badge-card.unlocked:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.rich-badge-card.locked {
+  background: var(--bg-soft);
+  border: 1px dashed var(--border-color);
+  opacity: 0.65;
+}
+
+.rich-badge-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+/* Микро-анимациялар (Micro-interactions) */
+.btn:active {
+  transform: scale(0.97);
+}
+
+.pop-scale {
+  animation: popScale 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popScale {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ==============================================================
+   Ақындардың нақыл сөздерінің айналмалы лентасы (Literary Marquee Ticker)
+   ============================================================== */
+.literary-ticker-wrapper {
+  background: linear-gradient(90deg, #134e4a 0%, #065f46 25%, #1e3a8a 70%, #1e1b4b 100%);
+  color: #ffffff;
+  padding: 10px 0;
+  box-shadow: 0 4px 15px rgba(6,95,70,0.18);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--accent-gold);
+}
+
+.literary-ticker-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  background: linear-gradient(90deg, #064e3b 80%, rgba(6,78,59,0) 100%);
+  padding: 0 24px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fef08a;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.literary-ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: tickerScroll 48s linear infinite;
+  padding-left: 170px;
+}
+
+.literary-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.literary-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 48px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.literary-quote-badge {
+  background: rgba(254, 240, 138, 0.2);
+  border: 1px solid rgba(254, 240, 138, 0.5);
+  color: #fef08a;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.literary-quote-text {
+  color: #f3f4f6;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.literary-quote-author {
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ==============================================================
+   Анимациялық элементтер (Қозғалып және айналып тұратын эффектілер)
+   ============================================================== */
+.animated-float {
+  display: inline-block;
+  animation: floatBob 3.5s ease-in-out infinite;
+}
+
+.animated-spin-slow {
+  display: inline-block;
+  animation: slowSpin 20s linear infinite;
+}
+
+.animated-pulse-glow {
+  animation: pulseGlow 2.2s ease-in-out infinite;
+}
+
+.animated-flame-bounce {
+  display: inline-block;
+  animation: flameBounce 1.4s ease-in-out infinite alternate;
+}
+
+.animated-crystal-gleam {
+  display: inline-block;
+  animation: crystalGleam 2.5s ease-in-out infinite;
+}
+
+@keyframes floatBob {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(3deg);
+  }
+}
+
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45);
+  }
+}
+
+@keyframes flameBounce {
+  0% {
+    transform: scale(1) rotate(-4deg);
+    filter: drop-shadow(0 2px 5px rgba(239, 68, 68, 0.4));
+  }
+  100% {
+    transform: scale(1.18) rotate(5deg);
+    filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.8));
+  }
+}
+
+@keyframes crystalGleam {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 2px 4px rgba(6, 182, 212, 0.3));
+  }
+  50% {
+    transform: scale(1.22);
+    filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.85));
+  }
+}
+
+/* Карточкалардың 3D көтерілу интеракциясы */
+.book-card, .starter-book-card, .streak-card, .rich-badge-card.unlocked {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease !important;
+}
+
+.book-card:hover {
+  transform: translateY(-6px) scale(1.015) !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 3D Абай Құнанбайұлының анимациялық портрет блогы */
+.abai-hero-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.4), 0 0 25px rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  perspective: 1200px;
+}
+
+@media (max-width: 768px) {
+  .abai-hero-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+    gap: 18px;
+  }
+}
+
+.abai-hero-card::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: pulseGlow 4s infinite alternate;
+}
+
+.abai-portrait-container {
+  flex-shrink: 0;
+  width: 170px;
+  height: 226px;
+  position: relative;
+  perspective: 1000px;
+}
+
+@media (max-width: 480px) {
+  .abai-portrait-container {
+    width: 140px;
+    height: 186px;
+  }
+}
+
+.abai-portrait-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+  transform-style: preserve-3d;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(245, 158, 11, 0.4);
+  border: 3px solid rgba(245, 158, 11, 0.8);
+  animation: abai3dFloat 5s ease-in-out infinite;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background: #000;
+}
+
+.abai-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: contrast(1.05) saturate(1.1);
+  transition: transform 0.5s ease;
+}
+
+.abai-hero-card:hover .abai-portrait-img {
+  transform: scale(1.05);
+}
+
+.abai-hero-card:hover .abai-portrait-frame {
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65), 0 0 35px rgba(245, 158, 11, 0.7);
+}
+
+@keyframes abai3dFloat {
+  0%, 100% {
+    transform: translateY(0px) rotateY(-6deg) rotateX(3deg);
+  }
+  50% {
+    transform: translateY(-8px) rotateY(6deg) rotateX(-3deg);
+  }
+}
+
+.abai-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.abai-aphorism-quote {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: #fffbeb;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  margin-bottom: 8px;
+  position: relative;
+  font-family: Georgia, 'Times New Roman', serif;
+  transition: opacity 0.3s ease;
+}
+
+.abai-author-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fde68a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.abai-reflection-tagline {
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-top: 6px;
+  line-height: 1.5;
+  transition: opacity 0.3s ease;
+}
+
+.btn-abai-quote-switch {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fef3c7;
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  margin-top: 10px;
+}
+
+.btn-abai-quote-switch:hover {
+  background: rgba(245, 158, 11, 0.35);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+}
+
+
+
+
