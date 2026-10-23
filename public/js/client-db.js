@@ -222,6 +222,7 @@ function getDefaultState() {
 class ClientDb {
   constructor() {
     this.books = CLIENT_DATA.books || [];
+    this.tasks = CLIENT_DATA.tasks || [];
     this.load();
   }
 
@@ -348,14 +349,51 @@ class ClientDb {
       let list = this.books;
       const genre = u.searchParams.get('genre');
       const q = u.searchParams.get('q');
+      const grade = u.searchParams.get('grade');
+      const lang = u.searchParams.get('lang');
+
+      const allGenres = [...new Set(this.books.map(b => b.genre).filter(Boolean))].sort();
+      const allInterests = [...new Set(this.books.flatMap(b => (b.interests || '').split(',')).filter(Boolean))].sort();
+      const allLangs = [...new Set(this.books.map(b => b.language).filter(Boolean))];
+
       if (genre && genre !== 'all' && genre !== 'Барлығы') {
         list = list.filter(b => b.genre === genre);
+      }
+      if (grade) {
+        const g = Number(grade);
+        list = list.filter(b => (!b.grade_min || b.grade_min <= g) && (!b.grade_max || b.grade_max >= g));
+      }
+      if (lang) {
+        list = list.filter(b => b.language === lang);
       }
       if (q) {
         const query = q.toLowerCase();
         list = list.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query));
       }
-      return { books: list, total: list.length };
+
+      const mapped = list.map(b => {
+        const sh = this.state.shelf.find(s => s.book_id === b.id);
+        return {
+          ...b,
+          interests: typeof b.interests === 'string' ? b.interests.split(',').filter(Boolean) : (b.interests || []),
+          has_text: Array.isArray(b.chapters) && b.chapters.length > 0,
+          shelf: sh ? {
+            status: sh.status,
+            percent: sh.percent || (sh.total_pages ? Math.min(100, Math.round(((sh.current_page || 0) / sh.total_pages) * 100)) : 0),
+            assigned: false
+          } : null
+        };
+      });
+
+      return {
+        books: mapped,
+        filters: {
+          genres: allGenres,
+          interests: allInterests,
+          languages: allLangs
+        },
+        total: this.books.length
+      };
     }
 
     const quizMatch = path.match(/^\/api\/books\/(\d+)\/quiz$/);
@@ -598,6 +636,181 @@ class ClientDb {
       }
       this.save();
       return { ok: true, xp_awarded: 5, entry: newEntry };
+    }
+
+    if (path === '/api/play') {
+      const curBook = this.books.find(b => b.id === 1) || this.books[0];
+      const tasks = this.tasks || [];
+      const prog = this.state.task_progress || {};
+
+      const mappedTasks = tasks.map((t) => {
+        const p = prog[t.id] || {};
+        const isDone = !!p.completed;
+        const isUnlocked = t.stage_no <= 3 || isDone;
+        return {
+          id: t.id,
+          type: t.type,
+          title: t.title,
+          stage_no: t.stage_no,
+          unlocked: isUnlocked,
+          done: isDone,
+          lock: !isUnlocked ? { reason: 'stage' } : null,
+          response_status: null
+        };
+      });
+
+      return {
+        books: [
+          {
+            book: {
+              id: curBook.id,
+              title: curBook.title,
+              author: curBook.author,
+              cover_color: curBook.cover_color,
+              cover_emoji: curBook.cover_emoji
+            },
+            started: true,
+            current_stage: 3,
+            next: { kind: 'task', title: 'Оқиғалар тізбегі' },
+            tasks: mappedTasks
+          }
+        ],
+        no_task_books: []
+      };
+    }
+
+    const taskMatch = path.match(/^\/api\/tasks\/(\d+)$/);
+    if (taskMatch && method === 'GET') {
+      const taskId = Number(taskMatch[1]);
+      const task = (this.tasks || []).find(t => t.id === taskId);
+      if (!task) throw new Error('task_not_found');
+      const curBook = this.books.find(b => b.id === task.book_id) || this.books[0];
+      const prog = (this.state.task_progress || {})[taskId] || { tries: 0, completed: 0, wrong_streak: 0 };
+      const resp = (this.state.task_responses || {})[taskId] || null;
+
+      return {
+        task: {
+          id: task.id,
+          book_id: task.book_id,
+          type: task.type,
+          stage_no: task.stage_no,
+          title: task.title,
+          instruction: task.instruction,
+          example: task.example,
+          source_chapter: task.source_chapter,
+          source_excerpt: task.source_excerpt,
+          payload: task.payload || {},
+          status: 'published'
+        },
+        book: {
+          id: curBook.id,
+          title: curBook.title,
+          is_demo: false
+        },
+        state: {
+          unlocked: true,
+          done: !!prog.completed
+        },
+        progress: prog,
+        response: resp,
+        next: null
+      };
+    }
+
+    const attemptMatch = path.match(/^\/api\/tasks\/(\d+)\/attempt$/);
+    if (attemptMatch && method === 'POST') {
+      const taskId = Number(attemptMatch[1]);
+      const task = (this.tasks || []).find(t => t.id === taskId);
+      if (!task) throw new Error('task_not_found');
+
+      const ans = body.answer || {};
+      const answer = task.answer || {};
+      let isCorrect = false;
+      let correctCount = 0;
+
+      if (task.type === 'sequence') {
+        const order = Array.isArray(ans.order) ? ans.order : [];
+        const targetOrder = answer.order || [];
+        isCorrect = order.length === targetOrder.length && order.every((id, i) => id === targetOrder[i]);
+        correctCount = order.filter((id, i) => id === targetOrder[i]).length;
+      } else if (['character', 'who_said', 'vocab', 'evidence'].includes(task.type)) {
+        const choices = ans.choices || {};
+        const keys = Object.keys(answer);
+        correctCount = keys.filter(k => choices[k] === answer[k]).length;
+        isCorrect = keys.length > 0 && correctCount === keys.length;
+      }
+
+      if (!this.state.task_progress) this.state.task_progress = {};
+      const prev = this.state.task_progress[taskId] || { tries: 0, completed: 0, wrong_streak: 0 };
+      prev.tries += 1;
+      if (isCorrect) {
+        prev.completed = 1;
+        prev.wrong_streak = 0;
+      } else {
+        prev.wrong_streak += 1;
+      }
+      this.state.task_progress[taskId] = prev;
+
+      let xpAwarded = 0;
+      if (isCorrect && this.state.currentUser) {
+        xpAwarded = 10;
+        this.state.currentUser.xp = (this.state.currentUser.xp || 0) + xpAwarded;
+      }
+      this.save();
+
+      const hints = task.hints || [];
+      const feedback = isCorrect ? {
+        status: 'correct',
+        explanation: task.explanation || 'Керемет! Тапсырманы қатесіз орындап шықтың!'
+      } : {
+        status: 'retry',
+        streak: prev.wrong_streak,
+        hint: hints.length ? hints[Math.min(prev.wrong_streak - 1, hints.length - 1)] : 'Мәтінді мұқият оқып, қайта ойланып көр!',
+        explanation: prev.wrong_streak >= 2 ? task.explanation : null,
+        correct_count: correctCount
+      };
+
+      return {
+        feedback,
+        state: { unlocked: true, done: !!prev.completed },
+        xp_awarded: xpAwarded
+      };
+    }
+
+    const responseMatch = path.match(/^\/api\/tasks\/(\d+)\/response$/);
+    if (responseMatch && method === 'POST') {
+      const taskId = Number(responseMatch[1]);
+      if (!this.state.task_responses) this.state.task_responses = {};
+      this.state.task_responses[taskId] = {
+        id: Date.now(),
+        task_id: taskId,
+        kind: body.kind || 'open',
+        position: body.position || null,
+        text: body.text || '',
+        created_at: new Date().toISOString()
+      };
+      if (this.state.currentUser) {
+        this.state.currentUser.xp = (this.state.currentUser.xp || 0) + 15;
+      }
+      this.save();
+      return {
+        ok: true,
+        feedback: 'Жауабың қабылданды және мұғалімнің тексеруіне жіберілді! +15 XP'
+      };
+    }
+
+    if (path === '/api/responses') {
+      const responses = Object.values(this.state.task_responses || {});
+      return { responses };
+    }
+
+    const reflMatch = path.match(/^\/api\/books\/(\d+)\/reflection$/);
+    if (reflMatch && method === 'POST') {
+      if (this.state.currentUser) {
+        this.state.currentUser.xp = (this.state.currentUser.xp || 0) + 20;
+      }
+      this.save();
+      return { ok: true, xp_awarded: 20 };
     }
 
     if (path === '/api/responses/seen' && method === 'POST') {

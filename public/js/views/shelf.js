@@ -36,13 +36,14 @@ export async function renderShelfView(container) {
   }
 
   function renderLayout(allRes, myShelf) {
-    const { books, filters } = allRes;
+    const { books = [], filters = { genres: [], interests: [], languages: [] } } = allRes || {};
+    const safeMyShelf = myShelf || { reading: [], want: [], finished: [] };
 
     let displayBooks = [];
     if (activeTab === 'all') displayBooks = books;
-    else if (activeTab === 'reading') displayBooks = myShelf.reading || [];
-    else if (activeTab === 'want') displayBooks = myShelf.want || [];
-    else if (activeTab === 'finished') displayBooks = myShelf.finished || [];
+    else if (activeTab === 'reading') displayBooks = safeMyShelf.reading || [];
+    else if (activeTab === 'want') displayBooks = safeMyShelf.want || [];
+    else if (activeTab === 'finished') displayBooks = safeMyShelf.finished || [];
 
     container.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
@@ -57,16 +58,16 @@ export async function renderShelfView(container) {
       <!-- Сөре қойындылары -->
       <div style="display:flex; gap:8px; border-bottom:2px solid var(--border-color); padding-bottom:8px; margin-bottom:16px; overflow-x:auto;">
         <button class="btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-secondary'}" data-tab="all">
-          ${t('shelf_all')} (${allRes.total})
+          ${t('shelf_all')} (${allRes?.total || books.length})
         </button>
         <button class="btn btn-sm ${activeTab === 'reading' ? 'btn-primary' : 'btn-secondary'}" data-tab="reading">
-          📘 ${t('shelf_reading')} (${(myShelf.reading || []).length})
+          📘 ${t('shelf_reading')} (${(safeMyShelf.reading || []).length})
         </button>
         <button class="btn btn-sm ${activeTab === 'want' ? 'btn-primary' : 'btn-secondary'}" data-tab="want">
-          ⭐ ${t('shelf_want')} (${(myShelf.want || []).length})
+          ⭐ ${t('shelf_want')} (${(safeMyShelf.want || []).length})
         </button>
         <button class="btn btn-sm ${activeTab === 'finished' ? 'btn-primary' : 'btn-secondary'}" data-tab="finished">
-          🏆 ${t('shelf_finished')} (${(myShelf.finished || []).length})
+          🏆 ${t('shelf_finished')} (${(safeMyShelf.finished || []).length})
         </button>
       </div>
 
@@ -86,7 +87,7 @@ export async function renderShelfView(container) {
             <div>
               <select class="form-select" id="sel-genre">
                 <option value="">Барлық жанрлар</option>
-                ${(filters.genres || []).map(gn => `<option value="${gn}" ${selectedGenre === gn ? 'selected' : ''}>${gn}</option>`).join('')}
+                ${(filters?.genres || []).map(gn => `<option value="${gn}" ${selectedGenre === gn ? 'selected' : ''}>${gn}</option>`).join('')}
               </select>
             </div>
             <div>
