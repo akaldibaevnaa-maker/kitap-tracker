@@ -19,7 +19,20 @@ export async function renderWorldView(container) {
 }
 
 function renderContent(container, data) {
-  const { current, journey, next, today, week, xp, crystals, streak, has_quiz, last_reward, feedback, motivations } = data;
+  const {
+    current = null,
+    journey = null,
+    next = null,
+    today = { minutes: 15, logged: false },
+    week = { target: 5, done: 0, days: [] },
+    xp = 0,
+    crystals = 0,
+    streak = { count: 0, active_today: false, next_milestone: 3 },
+    has_quiz = false,
+    last_reward = null,
+    feedback = null,
+    motivations = []
+  } = data || {};
   const currentBook = current ? current.book : null;
   const shelf = current ? current.shelf : null;
 
@@ -168,7 +181,7 @@ function renderContent(container, data) {
             📌 <strong>${nextMissionText}</strong>
           </div>
           <div style="display:inline-block; font-size:12px; background:var(--bg-soft); color:var(--text-muted); padding:4px 8px; border-radius:4px;">
-            ⏱️ Күнделікті мақсат: ~${today.minutes} минут оқу
+            ⏱️ Күнделікті мақсат: ~${today?.minutes || 15} минут оқу
           </div>
         </div>
       </div>
@@ -311,11 +324,11 @@ function renderContent(container, data) {
         <span>📅</span> ${t('world_weekly_goal')}
       </div>
       <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
-        Сенің мақсатың: аптасына кемінде ${week.target} күн кітап оқу. Осы аптада: <strong>${week.done} күн оқыдың</strong>.
+        Сенің мақсатың: аптасына кемінде ${week?.target || 5} күн кітап оқу. Осы аптада: <strong>${week?.done || 0} күн оқыдың</strong>.
       </p>
       <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; text-align:center;">
         ${['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс'].map((dayName, idx) => {
-          const d = week.days[idx];
+          const d = (week?.days || [])[idx];
           const isDone = d ? d.read : false;
           const isToday = d ? d.today : false;
           return `
