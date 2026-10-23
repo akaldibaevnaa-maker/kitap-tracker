@@ -269,6 +269,256 @@ class ClientDb {
       return { user: this.state.currentUser };
     }
 
+    if (path === '/api/auth/login' && method === 'POST') {
+      const login = (body?.login || '').trim().toLowerCase();
+      const password = (body?.password || '').trim();
+      if ((login === 'demo.mugalim' || login === 'mugalim' || login === 'teacher') && (password === 'demo1234' || password === 'demo' || password === '1234' || password === '12345678')) {
+        this.state.currentUser = {
+          id: 99,
+          role: 'teacher',
+          nickname: 'Сәуле Маратқызы',
+          login: 'demo.mugalim',
+          avatar: 'owl',
+          lang: 'kk',
+          is_demo: false,
+          classes: [{ id: 1, name: '11А сынып', level: 'senior', invite_code: 'DEMO25' }]
+        };
+        this.save();
+        return { user: this.state.currentUser };
+      }
+      throw new Error('Логин немесе құпиясөз қате! Дұрыс логин: demo.mugalim, құпиясөз: demo1234');
+    }
+
+    if (path === '/api/auth/student/login' && method === 'POST') {
+      const nickname = (body?.nickname || '').trim() || 'Құлахметова Аягөз';
+      this.state.currentUser = {
+        ...getDefaultState().currentUser,
+        nickname
+      };
+      this.save();
+      return { user: this.state.currentUser };
+    }
+
+    if (path === '/api/auth/student/register' && method === 'POST') {
+      const nickname = (body?.nickname || '').trim() || 'Жаңа оқушы';
+      this.state.currentUser = {
+        ...getDefaultState().currentUser,
+        id: Date.now(),
+        nickname,
+        avatar: body?.avatar || 'owl'
+      };
+      this.save();
+      return { user: this.state.currentUser };
+    }
+
+    if (path === '/api/auth/teacher/register' && method === 'POST') {
+      const nickname = (body?.name || '').trim() || 'Мұғалім';
+      this.state.currentUser = {
+        id: 99,
+        role: 'teacher',
+        nickname,
+        login: (body?.login || 'demo.mugalim').trim().toLowerCase(),
+        avatar: 'owl',
+        lang: 'kk',
+        is_demo: false,
+        classes: [{ id: 1, name: '11А сынып', level: 'senior', invite_code: 'DEMO25' }]
+      };
+      this.save();
+      return { user: this.state.currentUser };
+    }
+
+    if (path === '/api/teacher/classes' && method === 'GET') {
+      return {
+        classes: [
+          { id: 1, name: '11А сынып', level: 'senior', invite_code: 'DEMO25' }
+        ]
+      };
+    }
+
+    const overviewMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/overview$/);
+    if (overviewMatch) {
+      const classId = Number(overviewMatch[1]);
+      const students = [
+        {
+          id: 1,
+          nickname: 'Құлахметова Аягөз',
+          avatar: 'owl',
+          current_book: 'Ұмытылған бұлақ',
+          percent: 60,
+          stage_no: 3,
+          stage_name: '3. Оқиғалар жолы',
+          finished_books: 3,
+          reading_days: 4,
+          reading_days_7: 4,
+          minutes: 70,
+          games_done: 2,
+          accepted: 2,
+          pending: 0,
+          diary_notes: 3,
+          xp: 325,
+          last_log: '2026-10-23'
+        },
+        {
+          id: 2,
+          nickname: 'Әлихан Болатұлы',
+          avatar: 'owl',
+          current_book: 'Абай жолы',
+          percent: 80,
+          stage_no: 4,
+          stage_name: '4. Ой қазынасы',
+          finished_books: 4,
+          reading_days: 7,
+          reading_days_7: 7,
+          minutes: 120,
+          games_done: 4,
+          accepted: 4,
+          pending: 0,
+          diary_notes: 5,
+          xp: 440,
+          last_log: '2026-10-23'
+        },
+        {
+          id: 3,
+          nickname: 'Дана Серікқызы',
+          avatar: 'fox',
+          current_book: 'Менің атым Қожа',
+          percent: 50,
+          stage_no: 2,
+          stage_name: '2. Кейіпкерлер мекені',
+          finished_books: 1,
+          reading_days: 4,
+          reading_days_7: 3,
+          minutes: 45,
+          games_done: 1,
+          accepted: 1,
+          pending: 0,
+          diary_notes: 2,
+          xp: 160,
+          last_log: '2026-10-22'
+        },
+        {
+          id: 4,
+          nickname: 'Мирас Нұрланұлы',
+          avatar: 'owl',
+          current_book: 'Кішкентай ханзада',
+          percent: 40,
+          stage_no: 2,
+          stage_name: '2. Кейіпкерлер мекені',
+          finished_books: 1,
+          reading_days: 3,
+          reading_days_7: 3,
+          minutes: 40,
+          games_done: 1,
+          accepted: 1,
+          pending: 0,
+          diary_notes: 1,
+          xp: 150,
+          last_log: '2026-10-21'
+        },
+        {
+          id: 5,
+          nickname: 'Айзере Мұратқызы',
+          avatar: 'fox',
+          current_book: 'Қажымұқан',
+          percent: 20,
+          stage_no: 1,
+          stage_name: '1. Бастау қақпасы',
+          finished_books: 0,
+          reading_days: 1,
+          reading_days_7: 1,
+          minutes: 15,
+          games_done: 0,
+          accepted: 0,
+          pending: 0,
+          diary_notes: 0,
+          xp: 20,
+          last_log: '2026-10-20'
+        },
+        {
+          id: 6,
+          nickname: 'Нұрсұлтан Қанатұлы',
+          avatar: 'owl',
+          current_book: 'Том Сойер',
+          percent: 10,
+          stage_no: 1,
+          stage_name: '1. Бастау қақпасы',
+          finished_books: 0,
+          reading_days: 0,
+          reading_days_7: 0,
+          minutes: 0,
+          games_done: 0,
+          accepted: 0,
+          pending: 0,
+          diary_notes: 0,
+          xp: 10,
+          last_log: null
+        }
+      ];
+
+      return {
+        class: { id: classId, name: '11А сынып', level: 'senior', invite_code: 'DEMO25', is_demo: false },
+        activity: {
+          students: students.length,
+          active_students_7: 5,
+          reading_days_7: 19,
+          minutes_7: 290,
+          days: [
+            { date: '2026-10-17', readers: 2 },
+            { date: '2026-10-18', readers: 3 },
+            { date: '2026-10-19', readers: 4 },
+            { date: '2026-10-20', readers: 3 },
+            { date: '2026-10-21', readers: 4 },
+            { date: '2026-10-22', readers: 5 },
+            { date: '2026-10-23', readers: 5 }
+          ]
+        },
+        books: [
+          { id: 1, title: 'Ұмытылған бұлақ', cover_color: '#2e7d5b', cover_emoji: '💧', readers: 4, not_started: 1, finished: 1, avg_percent: 65 },
+          { id: 2, title: 'Менің атым Қожа', cover_color: '#3498db', cover_emoji: '🎒', readers: 3, not_started: 0, finished: 3, avg_percent: 100 },
+          { id: 3, title: 'Кішкентай ханзада', cover_color: '#9b59b6', cover_emoji: '🌹', readers: 2, not_started: 1, finished: 2, avg_percent: 95 }
+        ],
+        tasks: (this.tasks || []).map(t => ({
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          stage_no: t.stage_no,
+          book_title: 'Ұмытылған бұлақ',
+          completed: 4,
+          attempted: 5,
+          avg_tries: 1.2,
+          submitted: 2,
+          accepted: 2
+        })),
+        pending: 0,
+        students,
+        stage_distribution: [
+          { stage: 1, name: 'Бастау қақпасы', count: 2 },
+          { stage: 2, name: 'Кейіпкерлер мекені', count: 2 },
+          { stage: 3, name: 'Оқиғалар жолы', count: 1 },
+          { stage: 4, name: 'Ой қазынасы', count: 1 },
+          { stage: 5, name: 'Кітап шыңы', count: 0 }
+        ]
+      };
+    }
+
+    if (path === '/api/teacher/reviews') {
+      return { reviews: [] };
+    }
+
+    if (path.startsWith('/api/teacher/classes/') && path.endsWith('/missions')) {
+      return { missions: [] };
+    }
+
+    const resetPinMatch = path.match(/^\/api\/teacher\/students\/(\d+)\/reset-pin$/);
+    if (resetPinMatch && method === 'POST') {
+      return { pin: '1234' };
+    }
+
+    const assignMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/assign$/);
+    if (assignMatch && method === 'POST') {
+      return { ok: true };
+    }
+
     if (path === '/api/auth/logout') {
       this.state.currentUser = null;
       this.save();

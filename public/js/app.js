@@ -87,7 +87,7 @@ function updateHeaderUI() {
   if (profileBadge) {
     profileBadge.style.display = 'flex';
     if (avatarSpan) avatarSpan.textContent = currentUser.avatar === 'owl' ? '🦉' : '🦊';
-    if (nicknameSpan) nicknameSpan.textContent = currentUser.nickname;
+    if (nicknameSpan) nicknameSpan.textContent = currentUser?.nickname || '';
   }
 
   if (currentUser.role === 'teacher') {
