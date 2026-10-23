@@ -24,7 +24,7 @@ export async function renderPlayView(container, taskId = null) {
 }
 
 function renderDashboard(container, data) {
-  const { books, no_task_books } = data;
+  const { books = [], no_task_books = [] } = data || {};
 
   container.innerHTML = `
     <div style="margin-bottom:20px;">
