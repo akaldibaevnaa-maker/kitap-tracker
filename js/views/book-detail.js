@@ -46,7 +46,7 @@ function renderLayout(container, data) {
         </div>
         <div style="flex:1; min-width:260px;">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <h2 style="font-size:22px; font-weight:800;">${book.title}</h2>
+            <h2 style="font-size:22px; font-weight:800;">${book?.title || 'Кітап'}</h2>
           </div>
           <div style="font-size:14px; color:var(--text-muted); margin-bottom:8px;">${book.author}</div>
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">

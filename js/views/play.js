@@ -49,16 +49,16 @@ function renderDashboard(container, data) {
           <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
               <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:40px; height:50px; background:${b.book.cover_color}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;">
-                  ${b.book.cover_emoji}
+                <div style="width:40px; height:50px; background:${(b?.book || b)?.cover_color || '#2e7d5b'}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;">
+                  ${(b?.book || b)?.cover_emoji || '📖'}
                 </div>
                 <div>
-                  <h3 style="font-size:18px; font-weight:700;">${b.book.title}</h3>
-                  <div style="font-size:12px; color:var(--text-muted);">${b.book.author}</div>
+                  <h3 style="font-size:18px; font-weight:700;">${(b?.book || b)?.title || 'Кітап'}</h3>
+                  <div style="font-size:12px; color:var(--text-muted);">${(b?.book || b)?.author || ''}</div>
                 </div>
               </div>
               <div>
-                <a href="#/book/${b.book.id}" class="btn btn-secondary btn-sm">Кітап картасы</a>
+                <a href="#/book/${(b?.book || b)?.id || 1}" class="btn btn-secondary btn-sm">Кітап картасы</a>
               </div>
             </div>
 
@@ -71,10 +71,10 @@ function renderDashboard(container, data) {
                   <div style="background:${isDone ? '#f0fdf4' : isUnlocked ? 'var(--bg-soft)' : '#f9fafb'}; border:1px solid ${isDone ? '#86efac' : 'var(--border-color)'}; padding:14px; border-radius:var(--radius-sm); display:flex; flex-direction:column; justify-content:space-between;">
                     <div>
                       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span class="badge">${t.stage_no}-кезең</span>
+                        <span class="badge">${t?.stage_no || 1}-кезең</span>
                         <span>${isDone ? '✅ Орындалды' : isUnlocked ? '🔓 Ашық' : '🔒 Құлыптаулы'}</span>
                       </div>
-                      <div style="font-weight:700; font-size:15px; margin-bottom:6px;">${t.title}</div>
+                      <div style="font-weight:700; font-size:15px; margin-bottom:6px;">${t?.title || 'Тапсырма'}</div>
                       <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
                         ${getTaskTypeName(t.type)}
                       </div>
@@ -146,7 +146,7 @@ function renderTaskPlayboard(container, data) {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <a href="#/play" class="btn btn-secondary btn-sm">← Ойын алаңына қайту</a>
       <span style="font-size:13px; color:var(--text-muted); font-weight:600;">
-        ${book.title} • ${task.stage_no}-кезең
+        ${book?.title || 'Кітап'} • ${task?.stage_no || 1}-кезең
       </span>
     </div>
 
@@ -155,9 +155,9 @@ function renderTaskPlayboard(container, data) {
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
           <span class="badge" style="background:#e0f2fe; color:#0369a1; margin-bottom:6px; display:inline-block;">
-            ${getTaskTypeName(task.type)}
+            ${getTaskTypeName(task?.type)}
           </span>
-          <h2 style="font-size:22px; font-weight:800;">${task.title}</h2>
+          <h2 style="font-size:22px; font-weight:800;">${task?.title || 'Тапсырма'}</h2>
         </div>
         ${progress?.completed ? `
           <span class="badge" style="background:#dcfce7; color:#166534; font-size:13px; padding:4px 10px;">

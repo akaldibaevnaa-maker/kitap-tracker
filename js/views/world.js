@@ -52,7 +52,7 @@ function renderContent(container, data) {
   let nextMissionText = 'Кітабыңнан 10-15 минут оқып, ойыңмен бөліс.';
   if (next) {
     if (next.kind === 'task') {
-      nextMissionText = `«${next.title}» ойын тапсырмасын орындап, кейіпкерлерді тереңірек таны!`;
+      nextMissionText = `«${next?.title || 'Тапсырма'}» ойын тапсырмасын орындап, кейіпкерлерді тереңірек таны!`;
     } else if (next.kind === 'read') {
       nextMissionText = next.page 
         ? `${next.page}-бетке дейін үзінді оқып, оқиға желісін бақыла.`
@@ -149,12 +149,12 @@ function renderContent(container, data) {
         <div class="question-content">
           ${currentBook ? `
             <div style="display:flex; align-items:center; gap:12px;">
-              <div style="width:44px; height:58px; background:${currentBook.cover_color}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff;">
-                ${currentBook.cover_emoji}
+              <div style="width:44px; height:58px; background:${currentBook?.cover_color || '#2e7d5b'}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff;">
+                ${currentBook?.cover_emoji || '📖'}
               </div>
               <div>
-                <div style="font-weight:700; font-size:15px;">${currentBook.title}</div>
-                <div style="font-size:12px; color:var(--text-muted);">${currentBook.author}</div>
+                <div style="font-weight:700; font-size:15px;">${currentBook?.title || 'Ұмытылған бұлақ'}</div>
+                <div style="font-size:12px; color:var(--text-muted);">${currentBook?.author || ''}</div>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -225,10 +225,10 @@ function renderContent(container, data) {
               </h3>
             </div>
             <div style="font-size:13px; font-weight:600; color:#166534; margin-top:2px;">
-              Дәрежесі: ${tree.title}
+              Дәрежесі: ${tree?.title || 'Оқырман'}
             </div>
             <div style="font-size:12px; color:#15803d; margin-top:2px;">
-              ${tree.desc}
+              ${tree?.desc || ''}
             </div>
           </div>
         </div>
@@ -278,8 +278,8 @@ function renderContent(container, data) {
             <span class="badge" style="background:#e0f2fe; color:#0369a1; margin-bottom:6px; display:inline-block;">
               Саяхат кезеңі: ${currentStageName}
             </span>
-            <h3 style="font-size:20px; font-weight:800; margin-bottom:4px;">${currentBook.title}</h3>
-            <p style="color:var(--text-muted); font-size:14px;">${currentBook.author}</p>
+            <h3 style="font-size:20px; font-weight:800; margin-bottom:4px;">${currentBook?.title || 'Ұмытылған бұлақ'}</h3>
+            <p style="color:var(--text-muted); font-size:14px;">${currentBook?.author || ''}</p>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             ${currentBook.has_text ? `

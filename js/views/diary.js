@@ -336,7 +336,7 @@ function openAddQuoteModal(books, onSaved) {
       <div class="form-group">
         <label class="form-label">Кітапты таңдаңыз</label>
         <select class="form-select" id="inp-quote-book">
-          ${books.map(b => `<option value="${b.id}">${b.title} (${b.author})</option>`).join('')}
+          ${(books || []).map(b => `<option value="${b?.id || 1}">${b?.title || 'Кітап'} (${b?.author || ''})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -407,7 +407,7 @@ function openAddAudioModal(books, onSaved) {
       <div class="form-group">
         <label class="form-label">Кітапты таңдаңыз</label>
         <select class="form-select" id="inp-audio-book">
-          ${books.map(b => `<option value="${b.id}">${b.title} (${b.author})</option>`).join('')}
+          ${(books || []).map(b => `<option value="${b?.id || 1}">${b?.title || 'Кітап'} (${b?.author || ''})</option>`).join('')}
         </select>
       </div>
 

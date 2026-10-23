@@ -140,31 +140,31 @@ export async function renderShelfView(container) {
 
   function renderStarterBooks(allBooks) {
     const starterTitles = ['Абай жолы', 'Өркениеттің адасуы', 'Менің атым Қожа'];
-    let chosen = allBooks.filter(b => starterTitles.some(t => b.title.includes(t)));
-    if (chosen.length === 0) chosen = allBooks.slice(0, 3);
+    let chosen = (allBooks || []).filter(b => b && b.title && starterTitles.some(t => b.title.includes(t)));
+    if (chosen.length === 0) chosen = (allBooks || []).slice(0, 3);
 
     return chosen.map(b => `
       <div class="starter-book-card">
         <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:10px;">
-          <div style="width:48px; height:64px; background:${b.cover_color || '#2d6a4f'}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;">
-            ${b.cover_emoji || '📖'}
+          <div style="width:48px; height:64px; background:${b?.cover_color || '#2d6a4f'}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; flex-shrink:0;">
+            ${b?.cover_emoji || '📖'}
           </div>
           <div>
-            <h4 style="font-size:15px; font-weight:800; margin:0 0 2px 0; color:var(--text-main);">${b.title}</h4>
-            <div style="font-size:12px; color:var(--text-muted);">${b.author}</div>
+            <h4 style="font-size:15px; font-weight:800; margin:0 0 2px 0; color:var(--text-main);">${b?.title || 'Кітап'}</h4>
+            <div style="font-size:12px; color:var(--text-muted);">${b?.author || ''}</div>
             <span class="badge" style="margin-top:4px; font-size:10px; background:#e0f2fe; color:#0369a1;">
-              ${b.genre || 'Шедевр'}
+              ${b?.genre || 'Шедевр'}
             </span>
           </div>
         </div>
         <p style="font-size:12px; color:var(--text-muted); line-height:1.4; margin-bottom:12px;">
-          ${(b.description || '').slice(0, 100)}...
+          ${(b?.description || '').slice(0, 100)}...
         </p>
         <div style="display:flex; gap:8px;">
-          <a href="#/book/${b.id}" class="btn btn-secondary btn-sm" style="flex:1;">
+          <a href="#/book/${b?.id || 1}" class="btn btn-secondary btn-sm" style="flex:1;">
             Толығырақ
           </a>
-          <button class="btn btn-primary btn-sm btn-start-journey" data-book-id="${b.id}" style="flex:1;">
+          <button class="btn btn-primary btn-sm btn-start-journey" data-book-id="${b?.id || 1}" style="flex:1;">
             🚀 Оқуды бастау
           </button>
         </div>
@@ -175,12 +175,12 @@ export async function renderShelfView(container) {
   function renderBookCard(b) {
     return `
       <div class="book-card">
-        <div class="book-cover" style="background: ${b.cover_color || '#2e7d5b'};">
-          <span>${b.cover_emoji || '📘'}</span>
+        <div class="book-cover" style="background: ${b?.cover_color || '#2e7d5b'};">
+          <span>${b?.cover_emoji || '📘'}</span>
         </div>
         <div class="book-info">
-          <div class="book-title">${b.title}</div>
-          <div class="book-author">${b.author}</div>
+          <div class="book-title">${b?.title || 'Кітап'}</div>
+          <div class="book-author">${b?.author || ''}</div>
           <div class="book-meta">
             <span class="badge">${b.grade_min}-${b.grade_max} сынып</span>
             <span class="badge">${b.language === 'kk' ? 'Қазақша' : 'Орысша'}</span>
