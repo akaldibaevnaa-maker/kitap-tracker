@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KitapTracker — Мектеп оқушыларының кітап оқуын ойын арқылы қызықтыратын веб-платформа</title>
+  <meta name="description" content="KitapTracker: «Кітап әлеміне саяхат» — оқушыға бірден түсінікті, ойын тапсырмаларымен байланысқан интерактивті оқу ортасы.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+</head>
+<body>
+  <div class="ornament-header" aria-hidden="true"></div>
+
+  <!-- Басты тақырып / Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="#/world" class="brand-wrap" id="brand-link">
+        <div class="brand-icon">📚</div>
+        <div>
+          <div class="brand-title">KitapTracker</div>
+          <div class="brand-tagline" id="txt-tagline">Кітап әлеміне саяхат · №290 орта мектеп (2026 ж.)</div>
+        </div>
+      </a>
+
+      <!-- Оқушы мәзірі (компьютерлік, 5 негізгі бөлім) -->
+      <nav class="desktop-nav" id="main-nav" aria-label="Басты мәзір" style="display:none;">
+        <a href="#/world" class="nav-link" data-route="world" id="nav-world">🌍 Менің әлемім</a>
+        <a href="#/shelf" class="nav-link" data-route="shelf" id="nav-shelf">📖 Кітап сөресі</a>
+        <a href="#/diary" class="nav-link" data-route="diary" id="nav-diary">📝 Оқырман күнделігі</a>
+        <a href="#/play" class="nav-link" data-route="play" id="nav-play">🎯 Ойын алаңы</a>
+        <a href="#/mission" class="nav-link" data-route="mission" id="nav-mission">🌱 Ортақ миссия</a>
+        <a href="#/achievements" class="nav-link" data-route="achievements" id="nav-achievements">🏆 Жетістіктерім</a>
+      </nav>
+
+      <!-- Мұғалім мәзірі (бөлек кабинет) -->
+      <nav class="desktop-nav" id="teacher-nav" aria-label="Мұғалім мәзірі" style="display:none;">
+        <a href="#/teacher/overview" class="nav-link" data-route="teacher-overview">📊 Шолу</a>
+        <a href="#/teacher/classes" class="nav-link" data-route="teacher-classes">🏫 Сыныптар</a>
+        <a href="#/teacher/tasks" class="nav-link" data-route="teacher-tasks">✍️ Тапсырмалар</a>
+        <a href="#/teacher/reviews" class="nav-link" data-route="teacher-reviews">📝 Тексеру</a>
+        <a href="#/teacher/missions" class="nav-link" data-route="teacher-missions">🌳 Миссиялар</a>
+      </nav>
+
+      <!-- Тіл және Профиль батырмалары -->
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-toggle-lang" aria-label="Тілді ауыстыру">RU</button>
+        <button class="btn btn-secondary btn-sm" id="btn-toggle-motion" title="Анимацияны азайту" aria-label="Анимация режимі">⚡</button>
+        <div id="user-profile-badge" style="display:none; align-items:center; gap:8px;">
+          <span id="user-avatar-span" style="font-size:22px;">🦊</span>
+          <span id="user-nickname-span" style="font-weight:700; font-size:14px;"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-logout" title="Шығу">Шығу</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Ақындардың нақыл сөздерінің айналмалы лентасы (Marquee Ticker) -->
+  <div class="literary-ticker-wrapper" id="literary-ticker" aria-label="Ақындардың нақыл сөздері">
+    <div class="literary-ticker-label">
+      <span class="animated-spin-slow">📜</span> <span>АҚЫНДАР ӨСИЕТІ:</span>
+    </div>
+    <div class="literary-ticker-track" id="literary-ticker-track">
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Абай</span>
+        <span class="literary-quote-text">«Артық ғылым кітапта, ерінбей оқып көруге»</span>
+        <span class="literary-quote-author">— Абай Құнанбайұлы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ыбырай</span>
+        <span class="literary-quote-text">«Бір аллаға сыйынып, кел, балалар, оқылық!»</span>
+        <span class="literary-quote-author">— Ыбырай Алтынсарин</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Даналық</span>
+        <span class="literary-quote-text">«Кітап — білім бұлағы, білім — өмір шырағы»</span>
+        <span class="literary-quote-author">— Халық мақалы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ахмет</span>
+        <span class="literary-quote-text">«Оқусыз білім жоқ, білімсіз күнің жоқ»</span>
+        <span class="literary-quote-author">— Ахмет Байтұрсынұлы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ғабит</span>
+        <span class="literary-quote-text">«Кітап оқудан тыйылсақ, ой ойлаудан да тыйылар едік»</span>
+        <span class="literary-quote-author">— Ғабит Мүсірепов</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Бердібек</span>
+        <span class="literary-quote-text">«Балаларға арнап жазу — үлкен өнер мен таза жүректі талап етеді»</span>
+        <span class="literary-quote-author">— Бердібек Соқпақбаев</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Шаханов</span>
+        <span class="literary-quote-text">«Рухани биіктік пен ар-ұждан тазалығы — кітаптан бастау алады»</span>
+        <span class="literary-quote-author">— Мұхтар Шаханов</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Әуезов</span>
+        <span class="literary-quote-text">«Кітап — адамзат ақыл-ойының інжу-маржаны»</span>
+        <span class="literary-quote-author">— Мұхтар Әуезов</span>
+      </div>
+      <!-- Seamless loop duplicate -->
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Абай</span>
+        <span class="literary-quote-text">«Артық ғылым кітапта, ерінбей оқып көруге»</span>
+        <span class="literary-quote-author">— Абай Құнанбайұлы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ыбырай</span>
+        <span class="literary-quote-text">«Бір аллаға сыйынып, кел, балалар, оқылық!»</span>
+        <span class="literary-quote-author">— Ыбырай Алтынсарин</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Даналық</span>
+        <span class="literary-quote-text">«Кітап — білім бұлағы, білім — өмір шырағы»</span>
+        <span class="literary-quote-author">— Халық мақалы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ахмет</span>
+        <span class="literary-quote-text">«Оқусыз білім жоқ, білімсіз күнің жоқ»</span>
+        <span class="literary-quote-author">— Ахмет Байтұрсынұлы</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Ғабит</span>
+        <span class="literary-quote-text">«Кітап оқудан тыйылсақ, ой ойлаудан да тыйылар едік»</span>
+        <span class="literary-quote-author">— Ғабит Мүсірепов</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Бердібек</span>
+        <span class="literary-quote-text">«Балаларға арнап жазу — үлкен өнер мен таза жүректі талап етеді»</span>
+        <span class="literary-quote-author">— Бердібек Соқпақбаев</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Шаханов</span>
+        <span class="literary-quote-text">«Рухани биіктік пен ар-ұждан тазалығы — кітаптан бастау алады»</span>
+        <span class="literary-quote-author">— Мұхтар Шаханов</span>
+      </div>
+      <div class="literary-ticker-item">
+        <span class="literary-quote-badge">Әуезов</span>
+        <span class="literary-quote-text">«Кітап — адамзат ақыл-ойының інжу-маржаны»</span>
+        <span class="literary-quote-author">— Мұхтар Әуезов</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Негізгі қосымша аймағы -->
+  <main class="main-content" id="app" role="main">
+    <div style="text-align:center; padding: 60px 20px;">
+      <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+      <p style="font-weight: 600; color: var(--text-muted);">KitapTracker жүктелуде...</p>
+    </div>
+  </main>
+
+  <!-- Мобильді төменгі мәзір (оқушы үшін тек 5 бөлім) -->
+  <nav class="mobile-nav" id="mobile-nav" style="display:none;" aria-label="Мобильді мәзір">
+    <a href="#/world" class="mobile-nav-item" data-route="world">
+      <span class="icon">🌍</span>
+      <span>Әлемім</span>
+    </a>
+    <a href="#/shelf" class="mobile-nav-item" data-route="shelf">
+      <span class="icon">📖</span>
+      <span>Сөре</span>
+    </a>
+    <a href="#/diary" class="mobile-nav-item" data-route="diary">
+      <span class="icon">📝</span>
+      <span>Күнделік</span>
+    </a>
+    <a href="#/play" class="mobile-nav-item" data-route="play">
+      <span class="icon">🎯</span>
+      <span>Ойындар</span>
+    </a>
+    <a href="#/mission" class="mobile-nav-item" data-route="mission">
+      <span class="icon">🌱</span>
+      <span>Миссия</span>
+    </a>
+    <a href="#/achievements" class="mobile-nav-item" data-route="achievements">
+      <span class="icon">🏆</span>
+      <span>Жетістік</span>
+    </a>
+  </nav>
+
+  <!-- Мобильді мұғалім төменгі мәзірі -->
+  <nav class="mobile-nav" id="mobile-teacher-nav" style="display:none;" aria-label="Мұғалім мобильді мәзірі">
+    <a href="#/teacher/overview" class="mobile-nav-item" data-route="teacher-overview">
+      <span class="icon">📊</span>
+      <span>Шолу</span>
+    </a>
+    <a href="#/teacher/classes" class="mobile-nav-item" data-route="teacher-classes">
+      <span class="icon">🏫</span>
+      <span>Сынып</span>
+    </a>
+    <a href="#/teacher/tasks" class="mobile-nav-item" data-route="teacher-tasks">
+      <span class="icon">✍️</span>
+      <span>Тапсырма</span>
+    </a>
+    <a href="#/teacher/reviews" class="mobile-nav-item" data-route="teacher-reviews">
+      <span class="icon">📝</span>
+      <span>Тексеру</span>
+    </a>
+    <a href="#/teacher/missions" class="mobile-nav-item" data-route="teacher-missions">
+      <span class="icon">🌳</span>
+      <span>Миссия</span>
+    </a>
+  </nav>
+
+  <!-- Бағдарлама авторы, жетекшісі, ғылыми кеңесшісі және мектеп төлқұжаты (Footer) -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-badge">🇰🇿 Ғылыми-тәжірибелік жоба · 2026 жыл</div>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="footer-label">🏫 Мектеп</div>
+          <div class="footer-val">№290 орта мектеп</div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-label">✍️ Бағдарлама авторы</div>
+          <div class="footer-val">
+            <strong>Құлахметова Аягөз</strong><br>
+            <span style="font-size:12px; font-weight:normal; color:var(--text-muted);">11-сынып оқушысы, №290 орта мектеп</span>
+          </div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-label">👩‍🏫 Жетекшісі</div>
+          <div class="footer-val">
+            <strong>Аскарова Айнур Калдыбаевна</strong>
+          </div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-label">🎓 Ғылыми кеңесші</div>
+          <div class="footer-val">
+            <strong>Құлмырзаев Нұрлан Серікұлы</strong><br>
+            <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">Қорқыт ата атындағы Қызылорда университеті, Жасанды интеллект институты директоры</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer-note">
+        «KitapTracker» — мектеп оқушыларының кітап оқуын ойын арқылы қызықтыратын интерактивті веб-платформа.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Модальдер мен Toast контейнерлері -->
+  <div id="modal-root"></div>
+  <div class="toast-container" id="toast-root"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
