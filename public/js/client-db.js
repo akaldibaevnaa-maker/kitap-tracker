@@ -275,17 +275,34 @@ class ClientDb {
     }
 
     if (path === '/api/world') {
-      const curBook = this.books.find(b => b.id === 1) || this.books[0];
-      const curShelf = this.state.shelf.find(s => s.book_id === curBook.id) || { current_page: 6, total_pages: 10, percent: 60 };
+      const curShelf = this.state.shelf.find(s => s.status === 'reading') || this.state.shelf[0];
+      const curBook = curShelf ? this.books.find(b => b.id === curShelf.book_id) : (this.books[0] || null);
       return {
-        current: { book: curBook, shelf: curShelf },
+        current: curBook ? { book: curBook, shelf: curShelf } : null,
         journey: { current: 3, stages: [1, 2, 3, 4, 5].map(i => ({ no: i, status: i < 3 ? 'done' : (i === 3 ? 'current' : 'locked') })) },
         next: { kind: 'read', page: 8, title: 'Кітапты оқу' },
+        today: { minutes: this.state.currentUser?.daily_minutes || 15, logged: true },
+        week: {
+          target: this.state.currentUser?.weekly_days || 5,
+          done: 4,
+          days: [
+            { date: '2026-10-19', read: true, today: false, future: false },
+            { date: '2026-10-20', read: true, today: false, future: false },
+            { date: '2026-10-21', read: true, today: false, future: false },
+            { date: '2026-10-22', read: true, today: false, future: false },
+            { date: '2026-10-23', read: true, today: true, future: false },
+            { date: '2026-10-24', read: false, today: false, future: true },
+            { date: '2026-10-25', read: false, today: false, future: true }
+          ]
+        },
         streak: this.state.currentUser?.streak || { count: 4, active_today: true, next_milestone: 5 },
         xp: this.state.currentUser?.xp || 325,
         crystals: this.state.currentUser?.crystals || 12,
         has_quiz: true,
-        motivations: ['Күнделікті 10 минут оқу — үлкен жетістіктің бастауы!']
+        last_reward: { name: 'Дала пейзажы', emoji: '🌾', earned_at: '2026-10-20T10:00:00' },
+        feedback: null,
+        motivations: ['Күнделікті 10 минут оқу — үлкен жетістіктің бастауы!'],
+        scene: this.state.currentUser?.scene || 'scene_steppe'
       };
     }
 
@@ -305,6 +322,28 @@ class ClientDb {
       return { reading, finished, want };
     }
 
+    const shelfItemMatch = path.match(/^\/api\/shelf\/(\d+)$/);
+    if (shelfItemMatch) {
+      const bookId = Number(shelfItemMatch[1]);
+      if (method === 'PUT') {
+        let item = this.state.shelf.find(s => s.book_id === bookId);
+        if (!item) {
+          const b = this.books.find(x => x.id === bookId);
+          item = { id: Date.now(), book_id: bookId, status: body.status || 'reading', current_page: body.current_page || 0, total_pages: b ? b.total_pages : 100, percent: 0 };
+          this.state.shelf.push(item);
+        } else {
+          Object.assign(item, body);
+        }
+        this.save();
+        return { ok: true, item };
+      }
+      if (method === 'DELETE') {
+        this.state.shelf = this.state.shelf.filter(s => s.book_id !== bookId);
+        this.save();
+        return { ok: true };
+      }
+    }
+
     if (path === '/api/books') {
       let list = this.books;
       const genre = u.searchParams.get('genre');
@@ -317,6 +356,40 @@ class ClientDb {
         list = list.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query));
       }
       return { books: list, total: list.length };
+    }
+
+    const quizMatch = path.match(/^\/api\/books\/(\d+)\/quiz$/);
+    if (quizMatch) {
+      const bookId = Number(quizMatch[1]);
+      const book = this.books.find(b => b.id === bookId);
+      if (method === 'POST') {
+        const answers = body.answers || [];
+        const quiz = book ? book.quiz : null;
+        let correctCount = 0;
+        if (quiz && quiz.questions) {
+          quiz.questions.forEach((q, idx) => {
+            if (answers[idx] === q.correct) correctCount++;
+          });
+        }
+        const passed = correctCount >= (quiz ? Math.ceil(quiz.questions.length * 0.6) : 1);
+        const xpAwarded = passed ? (quiz ? quiz.xp_reward : 15) : 5;
+        const crystalsAwarded = passed ? (quiz ? quiz.crystals_reward : 2) : 0;
+        if (this.state.currentUser) {
+          this.state.currentUser.xp = (this.state.currentUser.xp || 0) + xpAwarded;
+          this.state.currentUser.crystals = (this.state.currentUser.crystals || 0) + crystalsAwarded;
+        }
+        this.save();
+        return {
+          ok: true,
+          passed,
+          correct_count: correctCount,
+          total_count: quiz ? quiz.questions.length : answers.length,
+          xp_awarded: xpAwarded,
+          crystals_awarded: crystalsAwarded,
+          feedback: passed ? 'Жарайсың! Кейіпкердің сұрақтарына керемет жауап бердің!' : 'Жақсы талпыныс! Тағы бір рет оқып көр.'
+        };
+      }
+      return { quiz: book ? (book.quiz || null) : null };
     }
 
     const bookMatch = path.match(/^\/api\/books\/(\d+)$/);
@@ -349,7 +422,7 @@ class ClientDb {
       };
     }
 
-    if (path === '/api/missions') {
+    if (path === '/api/mission' || path === '/api/missions') {
       return {
         class: { id: 1, name: '11А сынып', invite_code: 'DEMO25' },
         missions: [
@@ -362,30 +435,126 @@ class ClientDb {
             percent: 85,
             mine: 4
           }
-        ],
+        ]
+      };
+    }
+
+    if (path === '/api/leaderboard') {
+      return {
+        class_name: '11А сынып',
         leaderboard: this.state.leaderboard || []
       };
     }
 
     if (path === '/api/achievements') {
+      const user = this.state.currentUser || { xp: 325, crystals: 12 };
+      const finished = this.state.shelf
+        .filter(s => s.status === 'finished')
+        .map(s => {
+          const b = this.books.find(x => x.id === s.book_id) || {};
+          return { id: s.book_id, title: b.title || 'Кітап', cover_color: b.cover_color, cover_emoji: b.cover_emoji };
+        });
+
       return {
-        xp: this.state.currentUser?.xp || 325,
-        crystals: this.state.currentUser?.crystals || 12,
-        streak: 4,
+        xp: user.xp || 325,
+        crystals: user.crystals || 12,
+        streak: user.streak || { count: 4, active_today: true, next_milestone: 5 },
         badges: [
-          { id: 'first_book', name: 'Алғашқы кітап', icon: '📖', earned: true, description: '1-кітапты аяқтады' },
-          { id: 'streak_3', name: 'Табанды оқырман', icon: '🔥', earned: true, description: '3 күн қатарынан оқыды' },
-          { id: 'word_master', name: 'Сөз шебері', icon: '✍️', earned: true, description: '3+ дәйексөз қалдырды' },
-          { id: 'book_expert', name: 'Кітап білгірі', icon: '🧠', earned: true, description: 'Кейіпкер сұрақтарынан өтті' }
+          {
+            id: 'first_book',
+            title: 'Алғашқы кітап',
+            icon: '📖',
+            color: '#3b82f6',
+            desc: 'Кемінде 1 кітапты басынан аяғына дейін толық оқып бітіру',
+            unlocked: finished.length >= 1,
+            progress: `${Math.min(1, finished.length)}/1 кітап`
+          },
+          {
+            id: 'streak_reader',
+            title: 'Тұрақты оқырман',
+            icon: '🔥',
+            color: '#ef4444',
+            desc: '3 күн немесе одан көп күн қатарынан кітап оқу сериясын сақтау',
+            unlocked: true,
+            progress: '4/3 күн'
+          },
+          {
+            id: 'page_marathon',
+            title: '100 беттік марафоншы',
+            icon: '🏃‍♂️',
+            color: '#10b981',
+            desc: 'Кітаптардан жалпы 100 беттен астам оқып шығу',
+            unlocked: true,
+            progress: '416/100 бет'
+          },
+          {
+            id: 'word_master',
+            title: 'Сөз зергері',
+            icon: '✍️',
+            color: '#8b5cf6',
+            desc: 'Оқырман күнделігіне кемінде 3 дәйексөз не жазба қалдыру',
+            unlocked: (this.state.diary_entries || []).length >= 3,
+            progress: `${Math.min(3, (this.state.diary_entries || []).length)}/3 жазба`
+          },
+          {
+            id: 'quiz_master',
+            title: 'Кейіпкер досы',
+            icon: '🧠',
+            color: '#f59e0b',
+            desc: 'Кейіпкерлердің интерактивті квиз-сұрақтарынан сәтті өту',
+            unlocked: true,
+            progress: '1/1 квиз'
+          },
+          {
+            id: 'tree_peak',
+            title: 'Бәйтерек шыңы',
+            icon: '🌳',
+            color: '#16a34a',
+            desc: '«Бәйтерек — Білім ағашының» 3-деңгейіне («Жасыл Бәйтерек») жету',
+            unlocked: (user.xp || 325) >= 250,
+            progress: '3/3 деңгей'
+          }
         ],
-        scene: 'scene_steppe',
-        decor: null
+        stats: {
+          xp: user.xp || 325,
+          finishedBooks: finished.length,
+          totalPages: 416,
+          streak: 4,
+          maxStages: 5,
+          responses: 3,
+          logs: (this.state.reading_logs || []).length
+        },
+        rules: {
+          log_per_day: 10,
+          book_finish: 50,
+          sentence: 5,
+          quiz_reward: 15
+        },
+        rewards: [
+          { id: 'badge_first_book', type: 'badge', emoji: '📖', owned: true, earned_at: '2026-10-20T10:00:00' },
+          { id: 'badge_streak', type: 'badge', emoji: '🔥', owned: true, earned_at: '2026-10-21T10:00:00' },
+          { id: 'decor_feather', type: 'decor', emoji: '🪶', owned: true, earned_at: '2026-10-22T10:00:00' },
+          { id: 'item_dombyra', type: 'shelf_item', emoji: '🪕', owned: true, earned_at: '2026-10-22T12:00:00' },
+          { id: 'scene_steppe', type: 'scene', emoji: '🌾', owned: true, earned_at: '2026-10-20T10:00:00' }
+        ],
+        equipped: {
+          decor: user.decor || null,
+          scene: user.scene || 'scene_steppe',
+          avatar: user.avatar || 'owl'
+        },
+        history: [
+          { kind: 'book_finished', label: '«Менің атым Қожа» кітабын аяқтады', amount: 50, created_at: '2026-10-21T14:00:00' },
+          { kind: 'daily_log', label: 'Күнделікті 20 минут оқу', amount: 10, created_at: '2026-10-22T16:00:00' },
+          { kind: 'quiz', label: '«Ақбота» кейіпкер сұрақтары (+15 XP, +2 💎)', amount: 15, created_at: '2026-10-23T10:00:00' }
+        ],
+        finished_books: finished,
+        stages_reached: 3
       };
     }
 
-    // Mutating endpoints:
-    if (path === '/api/logs' && method === 'POST') {
-      const bookId = Number(body.book_id || body.bookId);
+    const logMatch = path.match(/^\/api\/books\/(\d+)\/logs$/);
+    if ((path === '/api/logs' || logMatch) && method === 'POST') {
+      const bookId = Number(logMatch ? logMatch[1] : (body.book_id || body.bookId));
       const page = Number(body.page);
       const note = body.note || '';
       
@@ -400,7 +569,8 @@ class ClientDb {
       if (s.percent >= 100) s.status = 'finished';
 
       if (this.state.currentUser) {
-        this.state.currentUser.xp += 10;
+        this.state.currentUser.xp = (this.state.currentUser.xp || 0) + 10;
+        if (!this.state.currentUser.streak) this.state.currentUser.streak = { count: 1, active_today: true, next_milestone: 3 };
         this.state.currentUser.streak.active_today = true;
       }
       this.save();
@@ -424,10 +594,14 @@ class ClientDb {
       };
       this.state.diary_entries.unshift(newEntry);
       if (this.state.currentUser) {
-        this.state.currentUser.xp += 5;
+        this.state.currentUser.xp = (this.state.currentUser.xp || 0) + 5;
       }
       this.save();
       return { ok: true, xp_awarded: 5, entry: newEntry };
+    }
+
+    if (path === '/api/responses/seen' && method === 'POST') {
+      return { ok: true };
     }
 
     return { ok: true };
