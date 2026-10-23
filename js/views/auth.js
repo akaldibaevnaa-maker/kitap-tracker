@@ -145,8 +145,10 @@ export function renderAuthView(container, onAuthSuccess) {
     container.querySelector('#btn-quick-demo-student').onclick = async () => {
       try {
         const res = await api.loginDemo('student');
-        showToast(`Қош келдің, ${res.user.nickname}!`, 'success');
-        onAuthSuccess(res.user);
+        if (res && res.user) {
+          showToast(`Қош келдің, ${res.user.nickname}!`, 'success');
+          onAuthSuccess(res.user);
+        }
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -155,8 +157,10 @@ export function renderAuthView(container, onAuthSuccess) {
     container.querySelector('#btn-quick-demo-teacher').onclick = async () => {
       try {
         const res = await api.loginDemo('teacher');
-        showToast(`Қош келдіңіз, ${res.user.nickname}!`, 'success');
-        onAuthSuccess(res.user);
+        if (res && res.user) {
+          showToast(`Қош келдіңіз, ${res.user.nickname}!`, 'success');
+          onAuthSuccess(res.user);
+        }
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -202,8 +206,12 @@ export function renderAuthView(container, onAuthSuccess) {
           const pin = container.querySelector('#inp-pin').value;
           res = await api.studentLogin({ classCode, nickname, pin });
         }
-        showToast(`Сәтті кірдіңіз: ${res.user.nickname}`, 'success');
-        onAuthSuccess(res.user);
+        if (res && res.user) {
+          showToast(`Сәтті кірдіңіз: ${res.user.nickname}`, 'success');
+          onAuthSuccess(res.user);
+        } else {
+          throw new Error('Кіру деректері дұрыс емес немесе пайдаланушы табылмады');
+        }
       } catch (err) {
         showToast(`Қате: ${err.message || 'Кіру деректері дұрыс емес'}`, 'error');
       }
