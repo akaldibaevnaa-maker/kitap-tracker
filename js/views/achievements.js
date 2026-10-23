@@ -20,12 +20,23 @@ export async function renderAchievementsView(container) {
 }
 
 function renderContent(container, data) {
-  const { xp, crystals, streak, badges: richBadges, stats, rules, rewards, equipped, history } = data;
+  const {
+    xp = 0,
+    crystals = 0,
+    streak = { count: 0 },
+    badges: richBadges = [],
+    stats = {},
+    rules = {},
+    rewards = [],
+    equipped = {},
+    history = []
+  } = data || {};
 
-  const badges = rewards.filter(r => r.type === 'badge');
-  const decors = rewards.filter(r => r.type === 'decor');
-  const shelfItems = rewards.filter(r => r.type === 'shelf_item');
-  const scenes = rewards.filter(r => r.type === 'scene');
+  const safeRewards = Array.isArray(rewards) ? rewards : [];
+  const badges = safeRewards.filter(r => r.type === 'badge');
+  const decors = safeRewards.filter(r => r.type === 'decor');
+  const shelfItems = safeRewards.filter(r => r.type === 'shelf_item');
+  const scenes = safeRewards.filter(r => r.type === 'scene');
 
   container.innerHTML = `
     <div style="margin-bottom:20px;">
