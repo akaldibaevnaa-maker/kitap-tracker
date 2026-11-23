@@ -281,12 +281,12 @@
   <div id="modal-root"></div>
   <div class="toast-container" id="toast-root"></div>
 
-  <script type="module" src="js/app.js?v=20261124_04"></script>
+  <script type="module" src="js/app.js?v=20261124_06"></script>
   <script>
     if ('caches' in window) {
       caches.keys().then((keys) => {
         keys.forEach((key) => {
-          if (key.includes('v1') || key !== 'kitaptracker-v2') {
+          if (key !== 'kitaptracker-v3') {
             caches.delete(key);
           }
         });
