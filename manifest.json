@@ -1,0 +1,16 @@
+{
+  "name": "KitapTracker — Кітап әлеміне саяхат",
+  "short_name": "KitapTracker",
+  "description": "Мектеп оқушыларының кітап оқуын ойын арқылы қызықтыратын интерактивті трекер",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fdfcf7",
+  "theme_color": "#2d6a4f",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
