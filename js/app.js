@@ -2,7 +2,7 @@
 import { api } from './api.js';
 import { getLang, setLang, t } from './i18n.js';
 import { renderAuthView } from './views/auth.js';
-import { renderWorldView } from './views/world.js';
+import { renderWorldView } from './views/world.js?v=2';
 import { renderShelfView } from './views/shelf.js';
 import { renderBookDetailView } from './views/book-detail.js';
 import { renderReaderView } from './views/reader.js';
