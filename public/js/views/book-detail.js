@@ -381,11 +381,8 @@ function bindEvents(container, book, data) {
     startBtn.onclick = async () => {
       try {
         await api.updateShelfBook(book.id, { status: 'reading', goalText: 'Күніне 10 минут оқу' });
-        showToast('Саяхат басталды!', 'success');
-        renderBookDetailView(container, book.id);
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
+      } catch (err) {}
+      window.location.hash = `#/read/${book.id}/1`;
     };
   }
 

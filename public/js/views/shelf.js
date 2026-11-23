@@ -343,7 +343,7 @@ export async function renderShelfView(container) {
           ` : ''}
         </div>
 
-        <!-- Төменгі әрекет батырмалары: «Толығырақ» және «Жалғастыру» / «Оқуды бастау» -->
+        <!-- Төменгі әрекет батырмалары: «Толығырақ» және «Оқу» -->
         <div style="margin-top:auto; padding-top:10px; border-top:1px solid var(--border-light);">
           <div style="display:flex; gap:8px;">
             <a href="#/book/${b.id}" class="btn btn-secondary btn-sm" style="flex:1; font-weight:700; font-size:12px;">
@@ -355,12 +355,17 @@ export async function renderShelfView(container) {
                 📖 Жалғастыру
               </a>
             ` : b.shelfStatus === 'finished' ? `
-              <button type="button" class="btn btn-secondary btn-sm btn-get-cert" data-book-id="${b.id}" data-book-title="${b.title}" style="flex:1.2; font-weight:800; font-size:12px; background:#fef3c7; border-color:#fde68a; color:#92400e;">
-                🏆 Сертификат
-              </button>
+              <div style="display:flex; gap:4px; flex:1.2;">
+                <a href="#/read/${b.id}/1" class="btn btn-primary btn-sm" style="flex:1; font-weight:800; font-size:11px;" title="Кітапты қайта оқу">
+                  📖 Қайта оқу
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm btn-get-cert" data-book-id="${b.id}" data-book-title="${b.title}" style="font-weight:800; font-size:11px; background:#fef3c7; border-color:#fde68a; color:#92400e;" title="Сертификат алу">
+                  🏆
+                </button>
+              </div>
             ` : `
               <button type="button" class="btn btn-primary btn-sm btn-start-journey" data-book-id="${b.id}" style="flex:1.2; font-weight:800; font-size:12px;">
-                🚀 Оқуды бастау
+                📖 Оқу
               </button>
             `}
           </div>
@@ -433,17 +438,15 @@ export async function renderShelfView(container) {
       };
     }
 
-    // «Оқуды бастау» батырмалары
+    // «Оқу» батырмалары — кітапты сөреге қосып, бірден оқуға ашу
     container.querySelectorAll('.btn-start-journey').forEach(btn => {
       btn.onclick = async () => {
         const bookId = Number(btn.getAttribute('data-book-id'));
         try {
           await api.updateShelfBook(bookId, { status: 'reading', goalText: 'Күніне 10-15 минут оқу' });
-          showToast('Кітап оқу сөреңізге сәтті қосылды! Жол болсын! 🚀', 'success');
-          window.location.hash = '#/world';
-        } catch (err) {
-          showToast(`Қате: ${err.message}`, 'error');
-        }
+        } catch (err) {}
+        // Бірден оқуға өту
+        window.location.hash = `#/read/${bookId}/1`;
       };
     });
 
