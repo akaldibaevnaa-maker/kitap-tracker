@@ -23,11 +23,26 @@ let currentUser = null;
 async function init() {
   setupGlobalControls();
 
-  try {
-    const meRes = await api.me();
-    currentUser = meRes.user;
-  } catch (err) {
-    currentUser = null;
+  const urlParams = new URLSearchParams(window.location.search);
+  const demoRole = urlParams.get('demo') || urlParams.get('role');
+
+  if (demoRole === 'teacher' || demoRole === 'student') {
+    try {
+      const demoRes = await api.loginDemo(demoRole);
+      currentUser = demoRes.user;
+      if (demoRole === 'teacher' && (!window.location.hash || window.location.hash === '#/world')) {
+        window.location.hash = '#/teacher/overview';
+      }
+    } catch {
+      currentUser = null;
+    }
+  } else {
+    try {
+      const meRes = await api.me();
+      currentUser = meRes.user;
+    } catch (err) {
+      currentUser = null;
+    }
   }
 
   updateHeaderUI();
