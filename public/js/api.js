@@ -82,6 +82,13 @@ export const api = {
 
   // Student Views
   getWorld: () => api.get('/api/world'),
+  getAnalytics: () => api.get('/api/student/analytics'),
+  getTree: () => api.get('/api/tree'),
+  getTreeAdminConfig: () => api.get('/api/admin/tree/config'),
+  updateTreeStageConfig: (data) => api.put('/api/admin/tree/config', data),
+  getAdminSummary: () => api.get('/api/admin/summary'),
+  adminAddBook: (data) => api.post('/api/admin/books', data),
+  adminDeleteBook: (id) => api.delete(`/api/admin/books/${id}`),
   getShelf: () => api.get('/api/shelf'),
   getBooks: (q = {}) => {
     const cleanParams = {};
@@ -111,6 +118,14 @@ export const api = {
   getMyResponses: () => api.get('/api/responses'),
   markFeedbackSeen: () => api.post('/api/responses/seen'),
 
+  // Reading Comprehension (Түсіну және талдау)
+  getComprehension: (bookId) => api.get(`/api/books/${bookId}/comprehension`),
+  submitComprehensionTest: (bookId, answers) => api.post(`/api/books/${bookId}/comprehension/test/submit`, { answers }),
+  submitComprehensionAnalysis: (bookId, data) => api.post(`/api/books/${bookId}/comprehension/analysis/submit`, data),
+  teacherClassComprehension: (classId) => api.get(`/api/teacher/classes/${classId}/comprehension`),
+  teacherCreateComprehensionTest: (data) => api.post('/api/teacher/comprehension/tests', data),
+  teacherReviewAnalysis: (id, data) => api.post(`/api/teacher/comprehension/analyses/${id}/review`, data),
+
   // Class Missions & Achievements & Diary & Quizzes
   getDiary: () => api.get('/api/diary'),
   addDiaryEntry: (data) => api.post('/api/diary', data),
@@ -126,6 +141,7 @@ export const api = {
   teacherUpdateClass: (id, data) => api.patch(`/api/teacher/classes/${id}`, data),
   teacherNewCode: (id) => api.post(`/api/teacher/classes/${id}/new-code`),
   teacherOverview: (classId) => api.get(`/api/teacher/classes/${classId}/overview`),
+  teacherClassAnalytics: (classId) => api.get(`/api/teacher/classes/${classId}/analytics`),
   teacherResetPin: (studentId) => api.post(`/api/teacher/students/${studentId}/reset-pin`),
   teacherAssignBook: (classId, data) => api.post(`/api/teacher/classes/${classId}/assign`, data),
   teacherTasks: (bookId) => api.get('/api/teacher/tasks' + (bookId ? `?bookId=${bookId}` : '')),
@@ -143,4 +159,43 @@ export const api = {
   teacherReviewDecision: (id, decision, feedback) => api.post(`/api/teacher/reviews/${id}`, { decision, feedback }),
   teacherMissions: (classId) => api.get(`/api/teacher/classes/${classId}/missions`),
   teacherCreateMission: (classId, data) => api.post(`/api/teacher/classes/${classId}/missions`, data),
+  teacherAddStudent: (classId, data) => api.post(`/api/teacher/classes/${classId}/students`, data),
+  teacherImportStudents: (classId, data) => api.post(`/api/teacher/classes/${classId}/import-students`, data),
+  teacherStudentPortfolio: (studentId) => api.get(`/api/teacher/students/${studentId}/portfolio`),
+  teacherSendFeedback: (studentId, data) => api.post(`/api/teacher/students/${studentId}/feedback`, data),
+  teacherAtRisk: (classId) => api.get(`/api/teacher/classes/${classId}/at-risk`),
+  teacherPopularBooks: (classId) => api.get(`/api/teacher/classes/${classId}/popular-books`),
+  teacherReport: (classId, params = {}) => api.get(`/api/teacher/classes/${classId}/report` + (Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '')),
+  teacherClassesComparison: () => api.get('/api/teacher/classes-comparison'),
+
+  // Stage 6: Reading Challenges, Electronic Reading Diary, QR System
+  getChallenges: () => api.get('/api/challenges'),
+  getChallenge: (id) => api.get(`/api/challenges/${id}`),
+  joinChallenge: (id) => api.post(`/api/challenges/${id}/join`),
+  createChallenge: (data) => api.post('/api/challenges', data),
+  getChallengeCertificate: (id, userId = null) => api.get(`/api/challenges/${id}/certificate` + (userId ? `?user_id=${userId}` : '')),
+
+  getDiaryBooks: (userId = null) => api.get('/api/diary/books' + (userId ? `?user_id=${userId}` : '')),
+  getDiaryBook: (bookId, userId = null) => api.get(`/api/diary/books/${bookId}` + (userId ? `?user_id=${userId}` : '')),
+  saveDiaryBook: (bookId, data) => api.post(`/api/diary/books/${bookId}`, data),
+  getDiaryPortfolio: (userId = null) => api.get('/api/diary/portfolio' + (userId ? `?user_id=${userId}` : '')),
+
+  getBookQrCard: (bookId) => api.get(`/api/books/${bookId}/qr-card`),
+  getLibraryQrCatalog: () => api.get('/api/library/qr-catalog'),
+
+  // Stage 7: AI Book Assistant (Жасанды интеллект кітап көмекшісі 🦉 «Кітап Досы»)
+  getAiStatus: () => api.get('/api/ai/status'),
+  getAiModes: () => api.get('/api/ai/modes'),
+  getAiConfig: () => api.get('/api/ai/config'),
+  saveAiConfig: (data) => api.post('/api/ai/config', data),
+  testAiConnection: (data = {}) => api.post('/api/ai/test', data),
+  askAiAssistant: (data) => api.post('/api/ai/assist', data),
+  getAiHistory: (sessionId = null) => api.get('/api/ai/history' + (sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '')),
+  clearAiHistory: (sessionId = null) => api.delete('/api/ai/history' + (sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '')),
+
+  // Stage 8: Scientific Research & Experiment Module (Ғылыми эксперименттік зерттеу)
+  getResearchExperiments: () => api.get('/api/research/experiments'),
+  getResearchExperiment: (id) => api.get(`/api/research/experiments/${id}`),
+  updateResearchMetrics: (id, data) => api.post(`/api/research/experiments/${id}/metrics`, data),
+  createResearchExperiment: (data) => api.post('/api/research/experiments', data),
 };

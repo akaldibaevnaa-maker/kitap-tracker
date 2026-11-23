@@ -41,7 +41,7 @@ function renderDashboard(container, data) {
         <p style="font-size:14px; color:var(--text-muted); margin-bottom:16px;">
           Алдымен кітапты оқып, беттерін белгіле. Саяхат картасының кезеңдері ашылған сайын жаңа ойындар пайда болады!
         </p>
-        <a href="#/shelf" class="btn btn-primary">Кітап сөресіне өту</a>
+        <a href="#/qr-library" class="btn btn-primary">Кітапханаға өту</a>
       </div>
     ` : `
       <div style="display:flex; flex-direction:column; gap:20px;">

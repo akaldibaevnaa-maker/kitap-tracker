@@ -11,6 +11,12 @@ import { renderMissionView } from './views/mission.js';
 import { renderAchievementsView } from './views/achievements.js';
 import { renderDiaryView } from './views/diary.js';
 import { renderTeacherView } from './views/teacher.js';
+import { renderTreeView } from './views/tree.js';
+import { renderAnalyticsView } from './views/analytics.js';
+import { renderChallengesView } from './views/challenges.js';
+import { renderQrLibraryView } from './views/qr-library.js';
+import { renderAiAssistantView } from './views/ai-assistant.js';
+import { renderResearchView } from './views/research.js';
 
 let currentUser = null;
 
@@ -63,6 +69,42 @@ function setupGlobalControls() {
       window.location.hash = '#/auth';
     };
   }
+
+  // Хабарламалар батырмасы
+  const notifBtn = document.getElementById('btn-notifications');
+  if (notifBtn) {
+    notifBtn.onclick = async () => {
+      try {
+        const me = await api.me();
+        const unseen = me?.user?.unseen_feedback || 0;
+        const { openModal } = await import('./ui.js');
+        openModal({
+          title: '🔔 Хабарламалар мен мұғалім пікірлері',
+          bodyHtml: `
+            <div style="padding:10px 0;">
+              ${unseen > 0 ? `
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:12px; padding:12px; margin-bottom:12px; color:#065f46; font-size:14px; font-weight:600;">
+                  ✨ Сізде мұғалімнен <strong>${unseen} жаңа пікір</strong> бар! Басты беттен немесе күнделіктен толық таныса аласыз.
+                </div>
+              ` : `
+                <div style="text-align:center; padding:20px; color:var(--text-muted);">
+                  <div style="font-size:32px; margin-bottom:8px;">📭</div>
+                  <p style="font-size:14px; font-weight:600;">Әзірге оқылмаған жаңа хабарлама жоқ.</p>
+                  <p style="font-size:12px; margin-top:4px;">Кітап оқып, күнделік толтырған сайын мұғалімнің бағалауы мен пікірлері осында түседі.</p>
+                </div>
+              `}
+              <div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">
+                <a href="#/diary" class="btn btn-secondary btn-sm" onclick="document.getElementById('modal-root').innerHTML=''">📝 Күнделікке өту</a>
+                <a href="#/world" class="btn btn-primary btn-sm" onclick="document.getElementById('modal-root').innerHTML=''">🌍 Басты бетке өту</a>
+              </div>
+            </div>
+          `
+        });
+      } catch (e) {
+        console.error('Notification error', e);
+      }
+    };
+  }
 }
 
 function updateHeaderUI() {
@@ -73,6 +115,10 @@ function updateHeaderUI() {
   const profileBadge = document.getElementById('user-profile-badge');
   const avatarSpan = document.getElementById('user-avatar-span');
   const nicknameSpan = document.getElementById('user-nickname-span');
+  const notifBtn = document.getElementById('btn-notifications');
+  const notifDot = document.getElementById('notif-badge-dot');
+  const xpBadge = document.getElementById('header-xp-badge');
+  const xpCount = document.getElementById('header-xp-count');
 
   if (!currentUser) {
     if (mainNav) mainNav.style.display = 'none';
@@ -80,6 +126,8 @@ function updateHeaderUI() {
     if (mobileNav) mobileNav.style.display = 'none';
     if (mobileTeacherNav) mobileTeacherNav.style.display = 'none';
     if (profileBadge) profileBadge.style.display = 'none';
+    if (notifBtn) notifBtn.style.display = 'none';
+    if (xpBadge) xpBadge.style.display = 'none';
     return;
   }
 
@@ -90,7 +138,22 @@ function updateHeaderUI() {
     if (nicknameSpan) nicknameSpan.textContent = currentUser?.nickname || '';
   }
 
-  if (currentUser.role === 'teacher') {
+  // XP және хабарлама көрсету
+  if (currentUser.role === 'student') {
+    if (xpBadge) {
+      xpBadge.style.display = 'inline-flex';
+      if (xpCount) xpCount.textContent = currentUser.xp ?? 0;
+    }
+    if (notifBtn) {
+      notifBtn.style.display = 'inline-flex';
+      if (notifDot) notifDot.style.display = (currentUser.unseen_feedback > 0) ? 'block' : 'none';
+    }
+  } else {
+    if (xpBadge) xpBadge.style.display = 'none';
+    if (notifBtn) notifBtn.style.display = 'none';
+  }
+
+  if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
     if (mainNav) mainNav.style.display = 'none';
     if (mobileNav) mobileNav.style.display = 'none';
     if (teacherNav) teacherNav.style.display = 'flex';
@@ -109,10 +172,24 @@ function handleRoute() {
   let hash = window.location.hash || '#/world';
 
   if (!currentUser) {
+    if (hash.startsWith('#/book/')) {
+      const bookId = hash.replace('#/book/', '');
+      return renderBookDetailView(appContainer, bookId);
+    }
+    if (hash.startsWith('#/read/')) {
+      const parts = hash.replace('#/read/', '').split('/');
+      return renderReaderView(appContainer, parts[0], parts[1] || 1);
+    }
     renderAuthView(appContainer, (user) => {
       currentUser = user;
       updateHeaderUI();
-      window.location.hash = user.role === 'teacher' ? '#/teacher/overview' : '#/world';
+      const savedBook = sessionStorage.getItem('kt_scanned_book');
+      if (savedBook) {
+        sessionStorage.removeItem('kt_scanned_book');
+        window.location.hash = `#/book/${savedBook}`;
+      } else {
+        window.location.hash = user.role === 'teacher' ? '#/teacher/overview' : '#/world';
+      }
     });
     return;
   }
@@ -126,12 +203,21 @@ function handleRoute() {
 
   try {
     // Маршруттар талдауы
-    if (currentUser.role === 'teacher') {
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
       if (hash.startsWith('#/teacher/overview')) return renderTeacherView(appContainer, 'overview');
+      if (hash.startsWith('#/teacher/analytics')) return renderTeacherView(appContainer, 'analytics');
+      if (hash.startsWith('#/teacher/comprehension')) return renderTeacherView(appContainer, 'comprehension');
+      if (hash.startsWith('#/teacher/admin') || hash.startsWith('#/admin')) return renderTeacherView(appContainer, 'admin');
       if (hash.startsWith('#/teacher/classes')) return renderTeacherView(appContainer, 'classes');
       if (hash.startsWith('#/teacher/tasks')) return renderTeacherView(appContainer, 'tasks');
       if (hash.startsWith('#/teacher/reviews')) return renderTeacherView(appContainer, 'reviews');
       if (hash.startsWith('#/teacher/missions')) return renderTeacherView(appContainer, 'missions');
+      if (hash.startsWith('#/teacher/reports')) return renderTeacherView(appContainer, 'reports');
+      if (hash.startsWith('#/teacher/comparison')) return renderTeacherView(appContainer, 'comparison');
+      if (hash.startsWith('#/teacher/challenges') || hash.startsWith('#/challenges')) return renderChallengesView(appContainer);
+      if (hash.startsWith('#/teacher/qr-catalog') || hash.startsWith('#/qr-library')) return renderQrLibraryView(appContainer);
+      if (hash.startsWith('#/ai-assistant')) return renderAiAssistantView(appContainer);
+      if (hash.startsWith('#/research')) return renderResearchView(appContainer);
       window.location.hash = '#/teacher/overview';
       return;
     }
@@ -158,8 +244,20 @@ function handleRoute() {
       renderPlayView(appContainer);
     } else if (hash.startsWith('#/mission')) {
       renderMissionView(appContainer);
+    } else if (hash.startsWith('#/tree')) {
+      renderTreeView(appContainer);
+    } else if (hash.startsWith('#/analytics')) {
+      renderAnalyticsView(appContainer);
     } else if (hash.startsWith('#/achievements')) {
       renderAchievementsView(appContainer);
+    } else if (hash.startsWith('#/challenges')) {
+      renderChallengesView(appContainer);
+    } else if (hash.startsWith('#/qr-library')) {
+      renderQrLibraryView(appContainer);
+    } else if (hash.startsWith('#/ai-assistant')) {
+      renderAiAssistantView(appContainer);
+    } else if (hash.startsWith('#/research')) {
+      renderResearchView(appContainer);
     } else {
       window.location.hash = '#/world';
     }

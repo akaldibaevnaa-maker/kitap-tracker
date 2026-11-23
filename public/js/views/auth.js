@@ -57,15 +57,15 @@ export function renderAuthView(container, onAuthSuccess) {
 
           <!-- Форма -->
           <form id="auth-form">
-            ${isTeacherMode ? renderTeacherForm() : (isRegister ? renderStudentRegisterForm() : renderStudentLoginForm())}
+            ${isTeacherMode ? (isRegister ? renderTeacherRegisterForm() : renderTeacherForm()) : (isRegister ? renderStudentRegisterForm() : renderStudentLoginForm())}
           </form>
 
           <div style="text-align:center; margin-top:16px;">
-            ${!isTeacherMode ? `
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-switch-auth-mode">
-                ${isRegister ? 'Бұрын тіркелгенмін (Кіру)' : 'Жаңа оқушымын (3 қадаммен тіркелу)'}
-              </button>
-            ` : ''}
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-switch-auth-mode">
+              ${isTeacherMode
+                ? (isRegister ? 'Бұрын тіркелген мұғаліммін (Кіру)' : 'Жаңа мұғалім ретінде тіркелу')
+                : (isRegister ? 'Бұрын тіркелгенмін (Кіру)' : 'Жаңа оқушымын (3 қадаммен тіркелу)')}
+            </button>
           </div>
         </div>
       </div>
@@ -140,6 +140,29 @@ export function renderAuthView(container, onAuthSuccess) {
     `;
   }
 
+  function renderTeacherRegisterForm() {
+    return `
+      <div style="border-left: 3px solid var(--primary-green); padding-left: 10px; margin-bottom: 14px;">
+        <div style="font-weight: 700; font-size: 14px;">👩‍🏫 Мұғалімнің жеке тіркелуі</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Kitap Tracker платформасында жеке аналитикалық кабинетіңізді ашыңыз</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Аты-жөніңіз (Толық)</label>
+        <input type="text" class="form-input" id="inp-t-reg-name" required placeholder="Мысалы: Аскарова Айнур Калдыбаевна">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Логин (жүйеге кіру үшін)</label>
+        <input type="text" class="form-input" id="inp-t-reg-login" required placeholder="Мысалы: ainur.mugalim (латын әріптері)">
+        <div class="form-help">Тек кіші латын әріптері, нүкте, сызықша (мысалы: ainur.mugalim)</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Құпиясөз (кемінде 8 таңба)</label>
+        <input type="password" minlength="8" class="form-input" id="inp-t-reg-pass" required placeholder="Кемінде 8 таңба">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Мұғалім болып тіркелу</button>
+    `;
+  }
+
   function bindEvents() {
     // Демо түймелері
     container.querySelector('#btn-quick-demo-student').onclick = async () => {
@@ -169,10 +192,12 @@ export function renderAuthView(container, onAuthSuccess) {
     // Қойындыларды ауыстыру
     container.querySelector('#tab-student').onclick = () => {
       isTeacherMode = false;
+      isRegister = false;
       render();
     };
     container.querySelector('#tab-teacher').onclick = () => {
       isTeacherMode = true;
+      isRegister = false;
       render();
     };
 
@@ -191,9 +216,16 @@ export function renderAuthView(container, onAuthSuccess) {
       try {
         let res;
         if (isTeacherMode) {
-          const login = container.querySelector('#inp-t-login').value;
-          const password = container.querySelector('#inp-t-pass').value;
-          res = await api.teacherLogin({ login, password });
+          if (isRegister) {
+            const name = container.querySelector('#inp-t-reg-name').value.trim();
+            const login = container.querySelector('#inp-t-reg-login').value.trim().toLowerCase();
+            const password = container.querySelector('#inp-t-reg-pass').value;
+            res = await api.teacherRegister({ name, login, password });
+          } else {
+            const login = container.querySelector('#inp-t-login').value.trim();
+            const password = container.querySelector('#inp-t-pass').value;
+            res = await api.teacherLogin({ login, password });
+          }
         } else if (isRegister) {
           const nickname = container.querySelector('#inp-reg-nickname').value;
           const avatar = container.querySelector('#inp-reg-avatar').value;

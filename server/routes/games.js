@@ -259,6 +259,7 @@ export default function register(r, db) {
 
   r.post('/api/responses/seen', ['student'], ({ user }) => {
     db.run('UPDATE responses SET seen_feedback = 1 WHERE user_id = ?', user.id);
+    db.run('UPDATE teacher_student_feedback SET seen = 1 WHERE student_id = ?', user.id);
     return { ok: true };
   });
 }

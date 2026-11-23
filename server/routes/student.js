@@ -101,6 +101,26 @@ export default function register(r, db) {
     const userRow = db.get('SELECT COALESCE(crystals, 0) AS crystals FROM users WHERE id = ?', user.id);
     const hasQuiz = cur ? !!db.get('SELECT id FROM character_quizzes WHERE book_id = ?', cur.book_id) : false;
 
+    const teacherFbRow = db.get(
+      `SELECT f.id, f.message, f.created_at, u.nickname AS teacher_name
+       FROM teacher_student_feedback f JOIN users u ON u.id = f.teacher_id
+       WHERE f.student_id = ? AND f.seen = 0
+       ORDER BY f.created_at DESC LIMIT 1`,
+      user.id
+    );
+
+    let fb = feedback;
+    if (!fb && teacherFbRow) {
+      fb = {
+        id: teacherFbRow.id,
+        status: 'accepted',
+        feedback: teacherFbRow.message,
+        kind: 'teacher_note',
+        task_title: 'Мұғалімнің жеке пікірі',
+        book_title: teacherFbRow.teacher_name || 'Мұғалімнің кеңесі',
+      };
+    }
+
     return {
       current,
       journey,
@@ -112,9 +132,297 @@ export default function register(r, db) {
       streak,
       has_quiz: hasQuiz,
       last_reward: lastReward ? { ...rewardInfo(lastReward.reward_id), earned_at: lastReward.earned_at } : null,
-      feedback: feedback || null,
+      feedback: fb || null,
+      teacher_feedback: teacherFbRow || null,
       motivations: motivations.slice(0, 3),
       scene: user.scene,
+      abai_book_id: db.get("SELECT id FROM books WHERE title = 'Қара сөздер'")?.id || 5,
+    };
+  });
+
+  // «Кітап ағашы» толық геймификация модулі (7 сатылы нақты даму көрсеткіштері)
+  r.get('/api/tree', ['student'], ({ user }) => {
+    const xp = totalXp(db, user.id);
+    const finishedBooksCount = db.get("SELECT COUNT(*) AS c FROM shelf WHERE user_id = ? AND status = 'finished'", user.id).c;
+    const readingDaysCount = db.get("SELECT COUNT(DISTINCT log_date) AS c FROM reading_logs WHERE user_id = ?", user.id).c;
+    const logsCount = db.get("SELECT COUNT(*) AS c FROM reading_logs WHERE user_id = ?", user.id).c;
+
+    // Оқылған беттердің нақты қосындысы (қайталанғандарды болдырмау логикасымен)
+    const logsMaxPerBook = db.all(`
+      SELECT book_id, MAX(page) as max_page FROM reading_logs WHERE user_id = ? GROUP BY book_id
+    `, user.id);
+    const finishedBooksPages = db.all(`
+      SELECT sh.book_id, COALESCE(sh.total_pages, b.total_pages, 100) as pages
+      FROM shelf sh JOIN books b ON b.id = sh.book_id
+      WHERE sh.user_id = ? AND sh.status = 'finished'
+    `, user.id);
+
+    const pagesMap = new Map();
+    for (const row of logsMaxPerBook) pagesMap.set(row.book_id, row.max_page || 0);
+    for (const row of finishedBooksPages) {
+      const prev = pagesMap.get(row.book_id) || 0;
+      pagesMap.set(row.book_id, Math.max(prev, row.pages || 0));
+    }
+    let totalPages = 0;
+    for (const p of pagesMap.values()) totalPages += p;
+
+    // Дерекқордан 7 саты баптауларын оқу
+    const stages = db.all('SELECT * FROM tree_stages_config ORDER BY stage ASC');
+
+    let currentStageIndex = 0;
+    for (let i = stages.length - 1; i >= 0; i--) {
+      const st = stages[i];
+      if (
+        (st.min_books && finishedBooksCount >= st.min_books) ||
+        (st.min_pages && totalPages >= st.min_pages) ||
+        (st.min_xp && xp >= st.min_xp) ||
+        (i === 1 && (logsCount >= 1 || totalPages >= 10 || xp >= 20)) ||
+        (i === 0)
+      ) {
+        currentStageIndex = i;
+        break;
+      }
+    }
+
+    const currentStage = stages[currentStageIndex];
+    const nextStage = currentStageIndex < stages.length - 1 ? stages[currentStageIndex + 1] : null;
+
+    let progressPercent = 100;
+    let remaining = { books: 0, pages: 0, xp: 0 };
+    if (nextStage) {
+      const prevXP = currentStage.min_xp || 0;
+      const nextXP = nextStage.min_xp || 100;
+      const xpSpan = Math.max(1, nextXP - prevXP);
+      const xpGained = Math.max(0, xp - prevXP);
+      progressPercent = Math.min(99, Math.max(5, Math.round((xpGained / xpSpan) * 100)));
+
+      remaining.books = Math.max(0, (nextStage.min_books || 0) - finishedBooksCount);
+      remaining.pages = Math.max(0, (nextStage.min_pages || 0) - totalPages);
+      remaining.xp = Math.max(0, nextXP - xp);
+    }
+
+    // Ағаштың даму тарихы (хронологиясы)
+    const history = [];
+    const firstLog = db.get('SELECT created_at, log_date FROM reading_logs WHERE user_id = ? ORDER BY created_at ASC LIMIT 1', user.id);
+    history.push({
+      stage: 1,
+      title: 'Тұқым себілді',
+      desc: '«Kitap Tracker» саяхатына алғашқы қадам жасалды.',
+      date: user.created_at ? user.created_at.slice(0, 10) : '2026-11-20',
+      icon: '🌱'
+    });
+    if (firstLog) {
+      history.push({
+        stage: 2,
+        title: 'Өскін жарып шықты',
+        desc: 'Алғашқы кітап оқылымы сәтті тіркелді.',
+        date: firstLog.log_date || firstLog.created_at.slice(0, 10),
+        icon: '🌿'
+      });
+    }
+    const finishedList = db.all(`
+      SELECT b.title, sh.finished_at FROM shelf sh JOIN books b ON b.id = sh.book_id
+      WHERE sh.user_id = ? AND sh.status = 'finished' ORDER BY sh.finished_at ASC
+    `, user.id);
+    finishedList.forEach((fb, idx) => {
+      history.push({
+        stage: Math.min(7, 3 + idx),
+        title: `«${fb.title}» кітабы толық аяқталды`,
+        desc: 'Ағаш жаңа жапырақ пен жеміс шығарды (+50 XP).',
+        date: fb.finished_at ? fb.finished_at.slice(0, 10) : localDate(),
+        icon: idx >= 3 ? '🍎' : '🌳'
+      });
+    });
+
+    return {
+      stats: {
+        xp,
+        finished_books: finishedBooksCount,
+        total_pages: totalPages,
+        reading_days: readingDaysCount,
+        logs_count: logsCount
+      },
+      stages,
+      current_stage: currentStage,
+      next_stage: nextStage,
+      progress_percent: progressPercent,
+      remaining,
+      history: history.reverse()
+    };
+  });
+
+  // Smart Reader Analytics — Ақылды оқырман аналитикасы API
+  r.get('/api/student/analytics', ['student'], ({ user }) => {
+    const today = localDate();
+    const ws = weekStart(today);
+    const lastWs = addDays(ws, -7);
+    const monthStart = today.slice(0, 7) + '-01';
+
+    // 1. Күнделікті статистика (бүгін)
+    const todayStats = db.get(
+      'SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes FROM reading_logs WHERE user_id = ? AND log_date = ?',
+      user.id, today
+    );
+
+    // 2. Апталық статистика (осы апта)
+    const thisWeekStats = db.get(
+      'SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes, COUNT(DISTINCT log_date) AS days FROM reading_logs WHERE user_id = ? AND log_date >= ?',
+      user.id, ws
+    );
+
+    // 3. Өткен апталық статистика
+    const lastWeekStats = db.get(
+      'SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes, COUNT(DISTINCT log_date) AS days FROM reading_logs WHERE user_id = ? AND log_date >= ? AND log_date < ?',
+      user.id, lastWs, ws
+    );
+
+    // 4. Айлық статистика (осы ай)
+    const thisMonthStats = db.get(
+      'SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes, COUNT(DISTINCT log_date) AS days FROM reading_logs WHERE user_id = ? AND log_date >= ?',
+      user.id, monthStart
+    );
+
+    // 5. Жалпы жиынтық көрсеткіштер
+    const finishedBooks = db.get("SELECT COUNT(*) AS c FROM shelf WHERE user_id = ? AND status = 'finished'", user.id).c;
+    const totalMinutes = db.get('SELECT COALESCE(SUM(minutes),0) AS m FROM reading_logs WHERE user_id = ?', user.id).m;
+    const streak = computeStreak(db, user.id);
+    const xp = totalXp(db, user.id);
+
+    // Толық оқылған беттерді нақты есептеу
+    const logsMax = db.all('SELECT book_id, MAX(page) as max_page FROM reading_logs WHERE user_id = ? GROUP BY book_id', user.id);
+    const finBooks = db.all("SELECT sh.book_id, COALESCE(sh.total_pages, b.total_pages, 100) as pages FROM shelf sh JOIN books b ON b.id = sh.book_id WHERE sh.user_id = ? AND sh.status = 'finished'", user.id);
+    const pagesMap = new Map();
+    for (const r of logsMax) pagesMap.set(r.book_id, r.max_page || 0);
+    for (const r of finBooks) pagesMap.set(r.book_id, Math.max(pagesMap.get(r.book_id) || 0, r.pages || 0));
+    let totalPages = 0;
+    for (const p of pagesMap.values()) totalPages += p;
+
+    // 6. Салыстыру көрсеткіштері
+    const pageDelta = thisWeekStats.pages - lastWeekStats.pages;
+    const isGrowth = pageDelta >= 0;
+
+    // 7. Жеке мақсаттың орындалуы
+    const targetDays = user.weekly_days || 5;
+    const targetMinutes = user.daily_minutes || 15;
+    const goalPercent = Math.min(100, Math.round((thisWeekStats.days / targetDays) * 100));
+
+    // 8. Апта күндері бойынша бағандық диаграмма деректері (Дс-Жс)
+    const weekDays = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс'];
+    const barChartData = weekDays.map((label, idx) => {
+      const d = addDays(ws, idx);
+      const row = db.get('SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes FROM reading_logs WHERE user_id = ? AND log_date = ?', user.id, d);
+      return {
+        date: d,
+        label,
+        pages: row.pages,
+        minutes: row.minutes,
+        isToday: d === today,
+        isFuture: d > today
+      };
+    });
+
+    // 9. Соңғы 14 күннің сызықтық график динамикасы
+    const lineChartData = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = addDays(today, -i);
+      const row = db.get('SELECT COALESCE(SUM(page),0) AS pages, COALESCE(SUM(minutes),0) AS minutes FROM reading_logs WHERE user_id = ? AND log_date = ?', user.id, d);
+      const dayShort = new Date(d).toLocaleDateString('kk-KZ', { weekday: 'narrow' });
+      lineChartData.push({
+        date: d,
+        label: `${d.slice(8, 10)} (${dayShort})`,
+        pages: row.pages,
+        minutes: row.minutes
+      });
+    }
+
+    // 10. Соңғы 28 күннің күнтізбелік деректері (Activity Calendar / Heatmap)
+    const calendarData = [];
+    for (let i = 27; i >= 0; i--) {
+      const d = addDays(today, -i);
+      const row = db.get('SELECT COALESCE(SUM(page),0) AS pages FROM reading_logs WHERE user_id = ? AND log_date = ?', user.id, d);
+      let level = 0;
+      if (row.pages >= 25) level = 4;
+      else if (row.pages >= 15) level = 3;
+      else if (row.pages >= 8) level = 2;
+      else if (row.pages > 0) level = 1;
+
+      calendarData.push({
+        date: d,
+        pages: row.pages,
+        level,
+        isToday: d === today
+      });
+    }
+
+    // 11. Жанрлар үлесі (Дөңгелек / Donut диаграмма)
+    const genreRows = db.all(`
+      SELECT COALESCE(NULLIF(b.genre, ''), 'Басқа') AS genre,
+             COUNT(DISTINCT b.id) AS count,
+             COALESCE(SUM(l.page), 0) AS pages
+      FROM shelf s
+      JOIN books b ON b.id = s.book_id
+      LEFT JOIN reading_logs l ON l.book_id = b.id AND l.user_id = s.user_id
+      WHERE s.user_id = ?
+      GROUP BY genre
+    `, user.id);
+
+    const totalGenrePages = genreRows.reduce((a, g) => a + (g.pages || 0), 0) || 1;
+    const donutChartData = genreRows.map(g => ({
+      genre: g.genre,
+      count: g.count,
+      pages: g.pages,
+      percent: Math.round(((g.pages || g.count * 10) / totalGenrePages) * 100) || 10
+    }));
+
+    // 12. Ақылды ұсыныстар (Smart Pedagogical Recommendations)
+    const recommendations = [];
+    if (thisWeekStats.pages > 0 && lastWeekStats.pages > 0) {
+      if (pageDelta > 0) {
+        recommendations.push(`Сен осы аптада ${thisWeekStats.pages} бет оқыдың. Өткен аптамен салыстырғанда ${pageDelta} бетке артық. Қарқының керемет, келесі аптада ${thisWeekStats.pages + 15} бет оқуды мақсат етіп көр! 🚀`);
+      } else if (pageDelta === 0) {
+        recommendations.push(`Сен осы аптада ${thisWeekStats.pages} бет оқып, өткен аптадағы тұрақты қарқыныңды сақтадың. Тұрақтылық — үлкен жетістікке бастайды! ⭐`);
+      } else {
+        recommendations.push(`Осы аптада ${thisWeekStats.pages} бет оқылды. Күніне 10-15 минут оқу арқылы өткен аптадағы (${lastWeekStats.pages} бет) қарқынды оңай қайтара аласың! 💡`);
+      }
+    } else if (thisWeekStats.pages > 0) {
+      recommendations.push(`Сен осы аптада ${thisWeekStats.pages} бет оқып, керемет бастама жасадың. Келесі аптада ${thisWeekStats.pages + 20} бет оқуға талаптанып көр! 📚`);
+    } else {
+      recommendations.push(`Кітап сөресінен ұнаған шығарманы таңдап, күніне 10 минут оқуды баста. Бұл сенің жеке Кітап ағашыңды гүлдендіреді! 🌱`);
+    }
+
+    if (streak.count >= 3) {
+      recommendations.push(`Сен ${streak.count} күн қатарынан кітап оқыдың. Жарайсың! Өрт сериясын сақтап, жаңа бейджге ұмтыл! 🔥`);
+    } else {
+      recommendations.push(`Күн сайын оқуды әдетке айналдырсаң, 3 күннен соң арнайы «Оқу сериясы» бейджі ашылады! ✨`);
+    }
+
+    if (goalPercent >= 100) {
+      recommendations.push(`Апталық оқу мақсатың (${thisWeekStats.days}/${targetDays} күн) 100% орындалды! Жоғары нәтижемен құттықтаймыз! 🏆`);
+    }
+
+    return {
+      period: { today, week_start: ws, month_start: monthStart },
+      daily: { pages: todayStats.pages, minutes: todayStats.minutes },
+      weekly: { pages: thisWeekStats.pages, minutes: thisWeekStats.minutes, days: thisWeekStats.days, target_days: targetDays },
+      last_weekly: { pages: lastWeekStats.pages, minutes: lastWeekStats.minutes, days: lastWeekStats.days },
+      comparison: { delta_pages: pageDelta, is_growth: isGrowth },
+      monthly: { pages: thisMonthStats.pages, minutes: thisMonthStats.minutes, days: thisMonthStats.days },
+      totals: {
+        books: finishedBooks,
+        pages: totalPages,
+        minutes: totalMinutes,
+        xp,
+        streak_count: streak.count,
+        streak_active: streak.active_today,
+        goal_percent: goalPercent
+      },
+      charts: {
+        bar_chart: barChartData,
+        line_chart: lineChartData,
+        calendar: calendarData,
+        donut_chart: donutChartData
+      },
+      recommendations
     };
   });
 

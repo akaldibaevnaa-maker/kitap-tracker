@@ -330,6 +330,120 @@ class ClientDb {
       return { user: this.state.currentUser };
     }
 
+    if (path === '/api/tree') {
+      const xp = this.state.xp || 0;
+      const logs = this.state.readingLogs || [];
+      const shelf = this.state.shelf || [];
+      const finishedBooks = shelf.filter(s => s.status === 'finished').length;
+      let totalPages = 0;
+      logs.forEach(l => { if (l.page > totalPages) totalPages = l.page; });
+      shelf.forEach(s => { if (s.status === 'finished') totalPages += (s.total_pages || 100); });
+
+      const stages = [
+        { stage: 1, id: 'seed', name: 'Тұқым', title: 'Алғашқы қадам', icon: '🌱', min_books: 0, min_pages: 0, min_xp: 0, description: 'Кітап әлеміне саяхат алғашқы дәннен басталады.' },
+        { stage: 2, id: 'sprout', name: 'Өскін', title: 'Жас талпыныс', icon: '🌿', min_books: 0, min_pages: 10, min_xp: 20, description: 'Алғашқы оқу мақсатың орындалып, топырақтан жасыл өскін бой көтерді.' },
+        { stage: 3, id: 'sapling', name: 'Жас өркен', title: 'Ізденімпаз оқырман', icon: '🪴', min_books: 0, min_pages: 50, min_xp: 60, description: 'Өркен күш алып, тамыры беки түсті. Тұрақты оқу әдеті қалыптасуда.' },
+        { stage: 4, id: 'young_tree', name: 'Жас ағаш', title: 'Талғампаз оқырман', icon: '🌳', min_books: 1, min_pages: 120, min_xp: 150, description: 'Жас ағаш мығым діңге ие болды.' },
+        { stage: 5, id: 'leafy_tree', name: 'Жапырақты ағаш', title: 'Зерделі білімпаз', icon: '🌲', min_books: 3, min_pages: 250, min_xp: 280, description: 'Ағашыңның жасыл жапырақтары жайқалып, әдеби талғамың биік деңгейге жетті.' },
+        { stage: 6, id: 'blossoming_tree', name: 'Гүлдеген ағаш', title: 'Парасат биігі', icon: '🌸🌳', min_books: 5, min_pages: 450, min_xp: 450, description: 'Ағашың әдемі гүл ашты. Терең ойлы рефлексиялар кезеңі.' },
+        { stage: 7, id: 'fruitful_tree', name: 'Жемісті ағаш', title: 'Кітап шыңының шебері', icon: '👑🍎🌳', min_books: 10, min_pages: 600, min_xp: 700, description: 'Ең жоғары мәртебе! Ағашың алтын жеміс берді.' }
+      ];
+
+      let stIdx = 0;
+      for (let i = stages.length - 1; i >= 0; i--) {
+        const st = stages[i];
+        if (finishedBooks >= st.min_books && totalPages >= st.min_pages && xp >= st.min_xp) {
+          stIdx = i;
+          break;
+        }
+      }
+
+      const curSt = stages[stIdx];
+      const nextSt = stIdx < stages.length - 1 ? stages[stIdx + 1] : null;
+      let progressPercent = 100;
+      if (nextSt) {
+        const span = Math.max(1, nextSt.min_xp - curSt.min_xp);
+        progressPercent = Math.min(99, Math.max(5, Math.round(((xp - curSt.min_xp) / span) * 100)));
+      }
+
+      return {
+        stats: {
+          xp,
+          finished_books: finishedBooks,
+          total_pages: totalPages,
+          reading_days: Math.max(1, new Set(logs.map(l => l.log_date)).size),
+          logs_count: logs.length
+        },
+        stages,
+        current_stage: curSt,
+        next_stage: nextSt,
+        progress_percent: progressPercent,
+        remaining: nextSt ? {
+          books: Math.max(0, nextSt.min_books - finishedBooks),
+          pages: Math.max(0, nextSt.min_pages - totalPages),
+          xp: Math.max(0, nextSt.min_xp - xp)
+        } : { books: 0, pages: 0, xp: 0 },
+        history: [
+          { stage: 1, title: 'Тұқым себілді', desc: '«Kitap Tracker» саяхатына алғашқы қадам жасалды.', date: '2026-11-20', icon: '🌱' },
+          { stage: 2, title: 'Өскін жарып шықты', desc: 'Алғашқы кітап оқылымы сәтті тіркелді.', date: '2026-11-21', icon: '🌿' }
+        ]
+      };
+    }
+
+    if (path === '/api/student/analytics') {
+      const logs = this.state.readingLogs || [];
+      const shelf = this.state.shelf || [];
+      const xp = this.state.xp || 0;
+      let totalPages = 0;
+      let totalMinutes = 0;
+      logs.forEach(l => {
+        if (l.page > totalPages) totalPages = l.page;
+        totalMinutes += (l.minutes || 10);
+      });
+      shelf.forEach(s => { if (s.status === 'finished') totalPages += (s.total_pages || 100); });
+      const finishedBooks = shelf.filter(s => s.status === 'finished').length;
+      const today = new Date().toISOString().slice(0, 10);
+
+      const barChart = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс'].map((l, i) => ({
+        label: l,
+        pages: (i % 2 === 0 ? 12 + i * 4 : 0),
+        minutes: (i % 2 === 0 ? 15 : 0),
+        isToday: i === 3
+      }));
+
+      return {
+        period: { today },
+        daily: { pages: 15, minutes: 20 },
+        weekly: { pages: 45, minutes: 60, days: 3, target_days: 5 },
+        last_weekly: { pages: 30, minutes: 40, days: 2 },
+        comparison: { delta_pages: 15, is_growth: true },
+        monthly: { pages: 120, minutes: 160, days: 9 },
+        totals: {
+          books: finishedBooks,
+          pages: totalPages || 75,
+          minutes: totalMinutes || 120,
+          xp,
+          streak_count: 4,
+          streak_active: true,
+          goal_percent: 60
+        },
+        charts: {
+          bar_chart: barChart,
+          line_chart: barChart.map(b => ({ label: b.label, pages: b.pages, minutes: b.minutes })),
+          calendar: Array.from({ length: 28 }, (_, i) => ({ date: `2026-11-${String(i+1).padStart(2,'0')}`, pages: i % 3 === 0 ? 15 : 0, level: i % 3 === 0 ? 2 : 0 })),
+          donut_chart: [
+            { genre: 'Повесть', count: 2, pages: 60, percent: 50 },
+            { genre: 'Ертегі', count: 1, pages: 30, percent: 25 },
+            { genre: 'Роман', count: 1, pages: 30, percent: 25 }
+          ]
+        },
+        recommendations: [
+          'Сен осы аптада 45 бет оқыдың (өткен аптадан 15 бетке артық). Қарқының керемет! 🚀',
+          'Сен 4 күн қатарынан кітап оқыдың. Серияны жалғастыр! 🔥'
+        ]
+      };
+    }
+
     if (path === '/api/teacher/classes' && method === 'GET') {
       return {
         classes: [
@@ -522,6 +636,98 @@ class ClientDb {
       return { ok: true };
     }
 
+    const addStudentMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/students$/);
+    if (addStudentMatch && method === 'POST') {
+      const cid = Number(addStudentMatch[1]);
+      const pin = body.pin || '1234';
+      return {
+        student: { id: Date.now(), nickname: body.nickname, avatar: body.avatar || 'fox', pin, class_id: cid, class_name: '11А сынып', invite_code: 'DEMO25' }
+      };
+    }
+
+    const importStudentsMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/import-students$/);
+    if (importStudentsMatch && method === 'POST') {
+      const cid = Number(importStudentsMatch[1]);
+      let lines = [];
+      if (Array.isArray(body.students)) lines = body.students.map(s => s.nickname || s);
+      else if (typeof body.text === 'string') lines = body.text.split(/\r?\n/).map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()).filter(Boolean);
+      const imported = lines.map((name, i) => ({ id: Date.now() + i, nickname: name, pin: '1234', avatar: 'owl' }));
+      return { imported, count: imported.length, skipped: [], class_id: cid, class_name: '11А сынып', invite_code: 'DEMO25' };
+    }
+
+    const portfolioMatch = path.match(/^\/api\/teacher\/students\/(\d+)\/portfolio$/);
+    if (portfolioMatch) {
+      const sid = Number(portfolioMatch[1]);
+      return {
+        student: { id: sid, nickname: 'Құлахметова Аягөз', avatar: 'owl', class_name: '11А сынып', invite_code: 'DEMO25', daily_minutes: 20, weekly_days: 4 },
+        metrics: { xp: 325, finished_books: 3, total_pages: 185, total_minutes: 240, reading_days: 12, reading_days_7: 4, goal_achievement_pct: 100, comprehension_avg: 90, comprehension_tests_count: 3, comprehension_analyses_count: 2 },
+        tree_stage: { stage: 3, name: 'Жас өркен', icon: '🎋', progress_percent: 75, finished_books: 3, total_pages: 185, xp: 325 },
+        shelf: [
+          { id: 1, title: 'Ұмытылған бұлақ', author: 'Ыбырай Алтынсарин', status: 'reading', current_page: 60, total_pages: 100, percent: 60, goal_text: 'Күнде 10 бет' },
+          { id: 2, title: 'Менің атым Қожа', author: 'Бердібек Соқпақбаев', status: 'finished', current_page: 120, total_pages: 120, percent: 100, goal_text: 'Толық оқу' }
+        ],
+        comprehension_attempts: [
+          { id: 1, book_title: 'Менің атым Қожа', score: 5, total_questions: 5, percent: 100, passed: 1, created_at: '2026-11-22T10:00:00.000Z' }
+        ],
+        comprehension_analyses: [],
+        recent_logs: [
+          { id: 1, book_title: 'Ұмытылған бұлақ', page: 60, minutes: 20, note: 'Бұлақтың тазалығы туралы өте ғибратты.', log_date: '2026-11-23' }
+        ],
+        feedbacks: []
+      };
+    }
+
+    const feedbackMatch = path.match(/^\/api\/teacher\/students\/(\d+)\/feedback$/);
+    if (feedbackMatch && method === 'POST') {
+      return { ok: true, id: Date.now(), message: body.message, created_at: new Date().toISOString() };
+    }
+
+    const atRiskMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/at-risk$/);
+    if (atRiskMatch) {
+      const cid = Number(atRiskMatch[1]);
+      return {
+        class_id: cid, class_name: '11А сынып', total_students: 6, at_risk_count: 2,
+        at_risk_students: [
+          { id: 5, nickname: 'Айзере Мұратқызы', avatar: 'fox', last_log: '2026-10-20', days_7: 0, goal_pct: 0, comprehension_avg: null, reasons: ['inactive_7d', 'low_goal'], reasons_kk: ['Соңғы 7 күнде оқылым тіркемеген', 'Оқу мақсаты 0%'], recommendation: 'Оқушыға ынталандырушы жеке пікір жазыңыз.' },
+          { id: 6, nickname: 'Нұрсұлтан Қанатұлы', avatar: 'owl', last_log: null, days_7: 0, goal_pct: 0, comprehension_avg: null, reasons: ['never_read'], reasons_kk: ['Әлі бірде-бір рет кітап оқылымын тіркемеген'], recommendation: 'Оқушыға бастау үшін қысқа ертегі ұсыныңыз.' }
+        ]
+      };
+    }
+
+    const popularBooksMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/popular-books$/);
+    if (popularBooksMatch) {
+      return {
+        popular_books: [
+          { id: 1, title: 'Ұмытылған бұлақ', author: 'Ыбырай Алтынсарин', genre: 'Әңгіме', cover_color: '#2e7d5b', cover_emoji: '💧', total_readers: 4, currently_reading: 3, finished_count: 1, avg_progress: 65, avg_comprehension_score: 85 },
+          { id: 2, title: 'Менің атым Қожа', author: 'Бердібек Соқпақбаев', genre: 'Повесть', cover_color: '#3498db', cover_emoji: '🎒', total_readers: 3, currently_reading: 0, finished_count: 3, avg_progress: 100, avg_comprehension_score: 95 }
+        ]
+      };
+    }
+
+    const reportMatch = path.match(/^\/api\/teacher\/classes\/(\d+)\/report(\?.*)?$/);
+    if (reportMatch) {
+      const cid = Number(reportMatch[1]);
+      return {
+        meta: { school: '№290 орта мектеп', teacher_name: 'Аскарова Айнур Калдыбаевна', class_name: '11А сынып', class_id: cid, period: 'q2', period_title: '2-тоқсан (қараша - желтоқсан)', academic_year: '2025-2026', generated_at: new Date().toISOString() },
+        totals: { total_students: 6, active_students: 5, total_pages: 580, total_minutes: 740, finished_books: 8, avg_pages_per_student: 96, avg_minutes_per_student: 123, comprehension_avg: 88, comprehension_tests_count: 9 },
+        tree_distribution: [
+          { stage: 1, name: 'Тұқым', count: 1 }, { stage: 2, name: 'Өскін', count: 1 }, { stage: 3, name: 'Жас өркен', count: 2 },
+          { stage: 4, name: 'Жас ағаш', count: 1 }, { stage: 5, name: 'Жапырақты ағаш', count: 1 }, { stage: 6, name: 'Гүлдеген ағаш', count: 0 }, { stage: 7, name: 'Жемісті ағаш', count: 0 }
+        ],
+        students: [
+          { id: 1, nickname: 'Құлахметова Аягөз', avatar: 'owl', pages: 185, minutes: 240, reading_days: 12, finished_books: 3, comprehension_avg: 90, comprehension_tests: 3, tree_stage_no: 3, tree_stage_name: 'Жас өркен', xp: 325, status: 'Үздік оқырман 🌟' }
+        ]
+      };
+    }
+
+    if (path === '/api/teacher/classes-comparison') {
+      return {
+        classes: [
+          { id: 1, name: '11А сынып', level: 'senior', invite_code: 'DEMO25', total_students: 6, active_students_7: 5, activity_percent_7: 83, total_pages: 580, avg_pages: 96, total_minutes: 740, finished_books: 8, comprehension_avg: 88, avg_xp: 280 }
+        ]
+      };
+    }
+
     if (path === '/api/auth/logout') {
       this.state.currentUser = null;
       this.save();
@@ -693,6 +899,79 @@ class ClientDb {
       return { quiz: book ? (book.quiz || null) : null };
     }
 
+    const compMatch = path.match(/^\/api\/books\/(\d+)\/comprehension$/);
+    if (compMatch) {
+      const bookId = Number(compMatch[1]);
+      const book = this.books.find(b => b.id === bookId);
+      if (!book) throw new Error('book_not_found');
+      return {
+        book,
+        has_test: true,
+        test: {
+          id: 1,
+          book_id: bookId,
+          title: `«${book.title}» бойынша мазмұндық түсіну тесті`,
+          description: 'Кітап мазмұны бойынша сұрақтар мен талдау тапсырмалары',
+          questions_count: 5,
+          questions: [
+            { id: 1, question: `«${book.title}» шығармасының басты тақырыбы қандай?`, options: ['Адамгершілік пен адалдық', 'Табиғатты бақыламау', 'Тек сауда жасау', 'Қиялдан қашу'] },
+            { id: 2, question: 'Басты кейіпкердің іс-әрекеті оқырманды неге жетелейді?', options: ['Ізгілікке және өзін-өзі тәрбиелеуге', 'Еріншектікке', 'Жалғыздыққа', 'Қателіктен сабақ алмауға'] },
+            { id: 3, question: 'Шығарманың шарықтау шегінде қандай оқиға болды?', options: ['Кейіпкердің шешуші таңдау жасауы', 'Кітаптың аяқталуы', 'Саяхаттан бас тарту', 'Достардың ажырауы'] },
+            { id: 4, question: 'Кейіпкердің бойындағы ең бағалы қасиет не?', options: ['Адалдық пен табандылық', 'Жағымпаздық', 'Қорқақтық', 'Тәкәппарлық'] },
+            { id: 5, question: 'Бұл шығармадан қандай өмірлік ғибрат алуға болады?', options: ['Әр іске жауапкершілікпен қарау қажет', 'Өзгені тыңдамау керек', 'Оқымауға болады', 'Тек өзіңді ғана ойлау керек'] }
+          ],
+          xp_reward: 25,
+          crystals_reward: 2,
+          is_completed: false,
+          last_attempt: null
+        },
+        analyses: [],
+        default_sequence: [
+          { id: 'seq1', text: 'Оқиғаның басталуы мен кейіпкерлерді таныстыру' },
+          { id: 'seq2', text: 'Басты тартыс пен оқиғаның дамуы' },
+          { id: 'seq3', text: 'Шарықтау шегі және кейіпкерлер сынағы' },
+          { id: 'seq4', text: 'Шешімі және оқиғаның қорытындылануы' }
+        ],
+        analysis_types: [
+          { code: 'character_analysis', name: 'Кейіпкерлерді сипаттау' },
+          { code: 'main_idea', name: 'Шығарманың негізгі идеясы' },
+          { code: 'event_sequence', name: 'Оқиғалардың ретін орналастыру' },
+          { code: 'personal_opinion', name: 'Өз пікірім мен ой-толғау' },
+          { code: 'favorite_quote', name: 'Ең ұнаған үзінді (дәйексөз)' },
+          { code: 'annotation', name: 'Қысқаша аннотация (аңдатпа)' }
+        ]
+      };
+    }
+
+    if (path.match(/^\/api\/books\/(\d+)\/comprehension\/test\/submit$/)) {
+      const answers = body.answers || [];
+      const score = Math.max(3, answers.length > 0 ? answers.length : 5);
+      const total = 5;
+      const percent = Math.round((score / total) * 100);
+      return {
+        ok: true,
+        score,
+        total,
+        percent,
+        level: 'good',
+        level_name: 'Жақсы түсінген оқырман 👍',
+        level_badge: 'Жоғары',
+        details: [],
+        xp_awarded: 25,
+        crystals_awarded: 2,
+        message: 'Мазмұндық тест сәтті тапсырылды!'
+      };
+    }
+
+    if (path.match(/^\/api\/books\/(\d+)\/comprehension\/analysis\/submit$/)) {
+      return {
+        ok: true,
+        analysis_id: Date.now(),
+        xp_awarded: 10,
+        message: 'Талдау тапсырмасы мұғалімге тексеруге жіберілді!'
+      };
+    }
+
     const bookMatch = path.match(/^\/api\/books\/(\d+)$/);
     if (bookMatch) {
       const bookId = Number(bookMatch[1]);
@@ -704,6 +983,29 @@ class ClientDb {
         shelf,
         chapters: book.chapters || [],
         quiz: book.quiz || null
+      };
+    }
+
+    const chMatch = path.match(/^\/api\/books\/(\d+)\/chapters\/(\d+)$/);
+    if (chMatch) {
+      const bookId = Number(chMatch[1]);
+      const chapterIdx = Number(chMatch[2]);
+      const book = this.books.find(b => b.id === bookId);
+      if (!book) throw new Error('book_not_found');
+      const chapters = book.chapters || [];
+      const ch = chapters.find(c => c.idx === chapterIdx) || chapters[chapterIdx - 1] || chapters[0] || {
+        idx: chapterIdx,
+        title: `${chapterIdx}-бөлім`,
+        body: 'Мәтін дайындалуда...',
+        page_start: 1,
+        page_end: 10
+      };
+      const sh = this.state.shelf.find(s => s.book_id === bookId) || null;
+      return {
+        book: { id: book.id, title: book.title, author: book.author, is_demo: !!book.is_demo, total_pages: book.total_pages },
+        chapter: ch,
+        count: chapters.length,
+        shelf: sh
       };
     }
 
@@ -1086,6 +1388,137 @@ class ClientDb {
 
     if (path === '/api/responses/seen' && method === 'POST') {
       return { ok: true };
+    }
+
+    // Reading challenges
+    if (path === '/api/challenges') {
+      return {
+        challenges: [
+          {
+            id: 1,
+            title: '7 күндік оқу марафоны',
+            description: '7 күн қатарынан күн сайын кітап оқып, тұрақты оқырман әдетін қалыптастыр!',
+            challenge_type: 'days',
+            target_value: 7,
+            start_date: '2026-11-01',
+            end_date: '2026-12-31',
+            reward_xp: 150,
+            badge_name: '7 күндік жеңімпаз',
+            badge_icon: '⚡',
+            is_joined: true,
+            my_progress: 5,
+            my_percent: 71,
+            is_completed: false,
+            participants_count: 14,
+            winners_count: 3
+          },
+          {
+            id: 2,
+            title: '1000 бет оқу марафоны',
+            description: 'Кітаптардан 1000 бет оқып шығып, оқу көлемін арттыр!',
+            challenge_type: 'pages',
+            target_value: 1000,
+            start_date: '2026-11-01',
+            end_date: '2026-12-31',
+            reward_xp: 400,
+            badge_name: '1000 бет батыры',
+            badge_icon: '📚',
+            is_joined: true,
+            my_progress: 1000,
+            my_percent: 100,
+            is_completed: true,
+            certificate_code: 'CERT-CHAL-2-U1-DEMO',
+            participants_count: 22,
+            winners_count: 6
+          }
+        ]
+      };
+    }
+
+    if (path.match(/^\/api\/challenges\/\d+\/certificate$/)) {
+      return {
+        certificate: {
+          school: '№290 орта мектеп',
+          ministry: 'Қазақстан Республикасы Оқу-ағарту министрлігі',
+          title: 'ОҚЫРМАН МАРАФОНЫНЫҢ ЖЕҢІМПАЗ СЕРТИФИКАТЫ',
+          student_name: this.state.currentUser?.nickname || 'Оқушы',
+          challenge_title: '1000 бет оқу марафоны',
+          target_value: 1000,
+          achieved_value: 1000,
+          badge_name: '1000 бет батыры',
+          badge_icon: '📚',
+          reward_xp: 400,
+          completed_at: new Date().toISOString().slice(0, 10),
+          certificate_code: 'CERT-CHAL-2-U1-DEMO',
+          verification_url: 'http://localhost:3000/#/challenges?id=2&cert=CERT-CHAL-2-U1-DEMO',
+          qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" width="120" height="120"><rect width="100%" height="100%" fill="#fff"/><rect x="4" y="4" width="7" height="7" fill="#000"/><rect x="18" y="4" width="7" height="7" fill="#000"/><rect x="4" y="18" width="7" height="7" fill="#000"/></svg>'
+        }
+      };
+    }
+
+    if (path === '/api/diary/books') {
+      return {
+        entries: (this.state.books || []).map(b => ({
+          book_id: b.id,
+          title: b.title,
+          author: b.author,
+          genre: b.genre,
+          total_pages: b.total_pages || 120,
+          pages_read: 45,
+          start_date: '2026-11-10',
+          finish_date: null,
+          opinion: 'Өте қызықты кітап, мазмұны бай.',
+          favorite_character: 'Қожа',
+          impression: 'Шығарма адамгершілік пен достықты үйретеді.',
+          summary: 'Қожаның балалық шағындағы қызықтары мен өмірлік сабақтары.',
+          rating: 5,
+          has_diary_entry: true,
+          cover_color: b.cover_color,
+          cover_emoji: b.cover_emoji
+        }))
+      };
+    }
+
+    if (path === '/api/diary/portfolio') {
+      return {
+        portfolio: {
+          school: '№290 орта мектеп',
+          student_name: this.state.currentUser?.nickname || 'Оқушы',
+          class_name: '5 «А» сыныбы',
+          stats: { total_pages: 350, total_minutes: 240, finished_books: 3, tree_stage: 4, tree_name: 'Жас ағаш', tree_icon: '🌳', xp: 450 },
+          entries: (this.state.books || []).slice(0, 3).map(b => ({
+            book_id: b.id,
+            title: b.title,
+            author: b.author,
+            genre: b.genre,
+            total_pages: b.total_pages || 120,
+            pages_read: 120,
+            start_date: '2026-11-01',
+            finish_date: '2026-11-15',
+            opinion: 'Өте әсерлі туынды.',
+            favorite_character: 'Басты кейіпкер',
+            impression: 'Ой саларлық оқиғалар.',
+            summary: 'Тәрбиелік мәні зор шығарма.',
+            rating: 5,
+            qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" width="90" height="90"><rect width="100%" height="100%" fill="#fff"/><rect x="4" y="4" width="7" height="7" fill="#000"/></svg>'
+          })),
+          generated_at: new Date().toISOString().slice(0, 10)
+        }
+      };
+    }
+
+    if (path === '/api/library/qr-catalog') {
+      return {
+        school: '№290 орта мектеп кітапханасы',
+        title: 'МЕКТЕП КІТАПХАНАСЫНЫҢ ИНТЕРАКТИВТІ QR-КАТАЛОГЫ',
+        total_books: (this.state.books || []).length,
+        catalog: (this.state.books || []).map(b => ({
+          ...b,
+          library_code: `№290-КИТ-${String(b.id).padStart(3, '0')}`,
+          qr_url: `http://localhost:3000/#/book/${b.id}`,
+          qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" width="130" height="130"><rect width="100%" height="100%" fill="#fff"/><rect x="4" y="4" width="7" height="7" fill="#000"/><rect x="18" y="4" width="7" height="7" fill="#000"/><rect x="4" y="18" width="7" height="7" fill="#000"/></svg>'
+        }))
+      };
     }
 
     return { ok: true };

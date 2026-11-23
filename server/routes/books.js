@@ -25,8 +25,8 @@ export function cardView(b, user) {
     is_demo: !!b.is_demo,
     has_text: (b.chapters_n ?? 0) > 0,
     visibility: b.visibility,
-    mine: b.owner_id === user.id,
-    shelf: b.shelf_status
+    mine: user ? b.owner_id === user.id : false,
+    shelf: (user && b.shelf_status)
       ? {
           status: b.shelf_status,
           percent: b.shelf_total ? Math.min(100, Math.round((b.current_page / b.shelf_total) * 100)) : 0,
@@ -81,8 +81,16 @@ export function afterLogChange(db, user, bookId, dates, before) {
 }
 
 function validateLog(db, user, bookId, body, ignoreId = null) {
-  const sh = getShelf(db, user.id, bookId);
-  if (!sh) fail(400, 'not_on_shelf');
+  let sh = getShelf(db, user.id, bookId);
+  if (!sh) {
+    const book = db.get('SELECT * FROM books WHERE id = ?', bookId);
+    if (book) {
+      upsertShelf(db, user.id, book, { status: 'reading' });
+      sh = getShelf(db, user.id, bookId);
+    } else {
+      fail(400, 'not_on_shelf');
+    }
+  }
   if (!sh.total_pages) fail(400, 'need_total_pages');
   const page = V.int(body.page, 'page', { min: 1, max: 100000 });
   if (page > sh.total_pages) fail(400, 'page_exceeds_total', { total: sh.total_pages });
@@ -134,12 +142,13 @@ export default function register(r, db) {
     return out;
   });
 
-  r.get('/api/books/:id', ['student', 'teacher', 'admin'], ({ user, params }) => {
+  r.get('/api/books/:id', null, ({ user, params }) => {
     bookOr404(db, user, params.id);
-    const b = db.get(`${BOOK_SELECT} WHERE b.id = ?`, user.id, Number(params.id));
+    const userId = user ? user.id : 0;
+    const b = db.get(`${BOOK_SELECT} WHERE b.id = ?`, userId, Number(params.id));
     const chapters = db.all('SELECT idx, title, page_start, page_end FROM chapters WHERE book_id = ? ORDER BY idx', b.id);
     const out = { book: { ...cardView(b, user), stage_pages: parseJson(b.stage_pages, null) }, chapters };
-    if (user.role === 'student') {
+    if (user && user.role === 'student') {
       const sh = getShelf(db, user.id, b.id);
       out.shelf = shelfView(sh);
       out.journey = sh ? computeJourney(db, user.id, b.id) : null;
@@ -159,12 +168,12 @@ export default function register(r, db) {
     return out;
   });
 
-  r.get('/api/books/:id/chapters/:idx', ['student', 'teacher', 'admin'], ({ user, params }) => {
+  r.get('/api/books/:id/chapters/:idx', null, ({ user, params }) => {
     const book = bookOr404(db, user, params.id);
     const ch = db.get('SELECT idx, title, body, page_start, page_end FROM chapters WHERE book_id = ? AND idx = ?', book.id, Number(params.idx));
     if (!ch) fail(404, 'not_found');
     const count = db.get('SELECT COUNT(*) AS n FROM chapters WHERE book_id = ?', book.id).n;
-    const sh = user.role === 'student' ? getShelf(db, user.id, book.id) : null;
+    const sh = (user && user.role === 'student') ? getShelf(db, user.id, book.id) : null;
     return {
       book: { id: book.id, title: book.title, author: book.author, is_demo: !!book.is_demo, total_pages: book.total_pages },
       chapter: ch,

@@ -14,6 +14,10 @@ import registerBooks from './routes/books.js';
 import registerGames from './routes/games.js';
 import registerTeacher from './routes/teacher.js';
 import registerAdmin from './routes/admin.js';
+import registerComprehension from './routes/comprehension.js';
+import registerMarathon from './routes/marathon.js';
+import registerAi from './routes/ai.js';
+import registerResearch from './routes/research.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.resolve(__dirname, '..', 'public');
@@ -67,7 +71,7 @@ export function createApp({ dbPath = DEFAULT_DB, authRateLimit = 40 } = {}) {
   ensureCatalog(db);
 
   const router = new Router();
-  for (const reg of [registerAuth, registerStudent, registerBooks, registerGames, registerTeacher, registerAdmin]) reg(router, db);
+  for (const reg of [registerAuth, registerStudent, registerBooks, registerGames, registerTeacher, registerAdmin, registerComprehension, registerMarathon, registerAi, registerResearch]) reg(router, db);
 
   const hits = new Map(); // Кіру әрекеттерінің жиілігін шектеу
   const limited = (ip) => {
@@ -127,6 +131,11 @@ export function createApp({ dbPath = DEFAULT_DB, authRateLimit = 40 } = {}) {
     );
     const url = new URL(req.url, 'http://localhost');
     try {
+      if (url.pathname.startsWith('/b/')) {
+        const bId = url.pathname.replace('/b/', '').replace(/\D/g, '');
+        res.writeHead(302, { Location: `/#/book/${bId}` });
+        return res.end();
+      }
       if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
       else serveStatic(req, res, url);
     } catch (e) {

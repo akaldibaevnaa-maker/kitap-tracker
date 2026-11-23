@@ -1,11 +1,12 @@
 // Мұғалім кабинеті. Әр сұраныста сынып/оқушы иелігі серверде тексеріледі.
 import crypto from 'node:crypto';
 import { hashSecret } from '../auth.js';
-import { addDays, fail, localDate, nowIso, parseJson, V } from '../lib/util.js';
-import { bookOr404, canSeeBook, ownClass, ownStudent, parseStagePages, upsertShelf } from '../lib/access.js';
+import { addDays, fail, localDate, nowIso, parseJson, V, weekStart } from '../lib/util.js';
+import { AVATARS, bookOr404, canSeeBook, ownClass, ownStudent, parseStagePages, upsertShelf } from '../lib/access.js';
 import { award, DEFAULT_RULES, parseRules, totalXp } from '../lib/xp.js';
 import { checkRewards } from '../lib/rewards.js';
 import { computeJourney } from '../lib/journey.js';
+import { computeStudentTreeStage } from '../lib/progress.js';
 import { METRICS, missionView } from '../lib/missions.js';
 import { AUTO_TYPES, TASK_TYPES, buildTask, checkAnswer, groundingIssues, publicTask, sourceTextFor } from '../lib/tasks.js';
 import { cardView, visibleBooks } from './books.js';
@@ -43,6 +44,14 @@ function studentRows(db, cid) {
       }
     }
 
+    const tree = computeStudentTreeStage(db, s.id);
+    const compRow = db.get('SELECT ROUND(AVG(percent)) AS avg_score, COUNT(*) AS count FROM comprehension_attempts WHERE user_id = ?', s.id);
+    const analysisCount = one('SELECT COUNT(*) FROM comprehension_analyses WHERE user_id = ?', s.id);
+    const userRow = db.get('SELECT weekly_days, daily_minutes FROM users WHERE id = ?', s.id);
+    const weeklyTarget = userRow?.weekly_days || 3;
+    const readingDays7 = one('SELECT COUNT(DISTINCT log_date) FROM reading_logs WHERE user_id = ? AND log_date >= ?', s.id, since);
+    const goalPct = Math.min(100, Math.round((readingDays7 / weeklyTarget) * 100));
+
     return {
       ...s,
       current_book: cur?.title ?? null,
@@ -52,7 +61,7 @@ function studentRows(db, cid) {
       journey_stage: { stage_no: stageNo, stage_name: stageName },
       finished_books: one("SELECT COUNT(*) FROM shelf WHERE user_id = ? AND status = 'finished'", s.id),
       reading_days: one('SELECT COUNT(DISTINCT log_date) FROM reading_logs WHERE user_id = ?', s.id),
-      reading_days_7: one('SELECT COUNT(DISTINCT log_date) FROM reading_logs WHERE user_id = ? AND log_date >= ?', s.id, since),
+      reading_days_7: readingDays7,
       minutes: one('SELECT COALESCE(SUM(minutes),0) FROM reading_logs WHERE user_id = ?', s.id),
       games_done: one('SELECT COUNT(*) FROM task_progress WHERE user_id = ? AND completed = 1', s.id),
       accepted: one("SELECT COUNT(*) FROM responses WHERE user_id = ? AND status = 'accepted'", s.id),
@@ -62,6 +71,16 @@ function studentRows(db, cid) {
                    one("SELECT COUNT(*) FROM responses WHERE user_id = ? AND kind IN ('reflection', 'open') AND status = 'accepted'", s.id),
       xp: totalXp(db, s.id),
       last_log: db.get('SELECT MAX(log_date) AS d FROM reading_logs WHERE user_id = ?', s.id).d,
+      tree_stage: tree,
+      tree_stage_no: tree.stage,
+      tree_stage_name: tree.name,
+      tree_icon: tree.icon,
+      comprehension_avg: compRow?.avg_score ?? null,
+      comprehension_tests: compRow?.count || 0,
+      comprehension_analyses: analysisCount,
+      goal_weekly_days: weeklyTarget,
+      goal_daily_minutes: userRow?.daily_minutes || 15,
+      goal_pct: goalPct,
     };
   });
 }
@@ -206,7 +225,490 @@ export default function register(r, db) {
     return { pin };
   });
 
-  // ---------- Шолу: 4 негізгі көрсеткіш ----------
+  // ---------- Оқушыларды жеке тіркеу ----------
+  r.post('/api/teacher/classes/:id/students', T, ({ user, params, body }) => {
+    const c = ownClass(db, user, params.id);
+    const nickname = V.str(body.nickname, 'nickname', { min: 2, max: 24 });
+    const avatar = AVATARS.includes(body.avatar) ? body.avatar : 'fox';
+    let pin = String(body.pin || '').trim();
+    if (pin && !/^\d{4}$/.test(pin)) fail(400, 'invalid_input', { field: 'pin' });
+    if (!pin) {
+      pin = String(crypto.randomInt(1000, 10000));
+    }
+    const taken = db.get(
+      'SELECT 1 AS x FROM users u JOIN class_members m ON m.user_id = u.id WHERE m.class_id = ? AND lower(u.nickname) = lower(?)',
+      c.id, nickname
+    );
+    if (taken) fail(409, 'nickname_taken');
+
+    const id = db.tx(() => {
+      const uid = db.run(
+        `INSERT INTO users(role, nickname, secret_hash, avatar, onboarded, created_at) VALUES ('student', ?, ?, ?, 1, ?)`,
+        nickname, hashSecret(pin), avatar, nowIso()
+      ).lastInsertRowid;
+      db.run('INSERT INTO class_members(class_id, user_id, joined_at) VALUES (?, ?, ?)', c.id, uid, nowIso());
+      db.run("INSERT INTO user_rewards(user_id, reward_id, earned_at) VALUES (?, 'scene_steppe', ?)", uid, nowIso());
+      return uid;
+    });
+
+    return {
+      student: {
+        id,
+        nickname,
+        avatar,
+        pin,
+        class_id: c.id,
+        class_name: c.name,
+        invite_code: c.invite_code,
+      }
+    };
+  });
+
+  // ---------- Excel / CSV / Тізім арқылы оқушыларды жаппай импорттау ----------
+  r.post('/api/teacher/classes/:id/import-students', T, ({ user, params, body }) => {
+    const c = ownClass(db, user, params.id);
+    let rows = [];
+    if (Array.isArray(body.students)) {
+      rows = body.students;
+    } else if (typeof body.text === 'string') {
+      const lines = body.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        // Тізім элементін талдау: "1. Ахметов Әли; 1234" немесе "Серік Айдос, 5678" немесе "Қасымова Әмина"
+        const parts = line.split(/[;,\t]/).map((p) => p.trim());
+        let rawName = parts[0];
+        rawName = rawName.replace(/^\d+[\.\)]\s*/, '').trim();
+        if (!rawName) continue;
+        const pin = parts[1] && /^\d{4}$/.test(parts[1]) ? parts[1] : null;
+        rows.push({ nickname: rawName, pin });
+      }
+    }
+
+    if (!rows.length) fail(400, 'no_students_provided');
+
+    const imported = [];
+    const skipped = [];
+    const avatarsList = ['fox', 'owl', 'bear', 'cat', 'wolf', 'lion', 'eagle', 'hare'];
+
+    db.tx(() => {
+      for (let i = 0; i < rows.length; i++) {
+        const rItem = rows[i];
+        const nickname = String(rItem.nickname || '').trim().slice(0, 24);
+        if (nickname.length < 2) {
+          skipped.push({ nickname, reason: 'too_short' });
+          continue;
+        }
+        const existing = db.get(
+          'SELECT 1 AS x FROM users u JOIN class_members m ON m.user_id = u.id WHERE m.class_id = ? AND lower(u.nickname) = lower(?)',
+          c.id, nickname
+        );
+        if (existing) {
+          skipped.push({ nickname, reason: 'nickname_taken' });
+          continue;
+        }
+        const pin = rItem.pin && /^\d{4}$/.test(rItem.pin) ? rItem.pin : String(crypto.randomInt(1000, 10000));
+        const avatar = avatarsList[i % avatarsList.length];
+        const uid = db.run(
+          `INSERT INTO users(role, nickname, secret_hash, avatar, onboarded, created_at) VALUES ('student', ?, ?, ?, 1, ?)`,
+          nickname, hashSecret(pin), avatar, nowIso()
+        ).lastInsertRowid;
+        db.run('INSERT INTO class_members(class_id, user_id, joined_at) VALUES (?, ?, ?)', c.id, uid, nowIso());
+        db.run("INSERT INTO user_rewards(user_id, reward_id, earned_at) VALUES (?, 'scene_steppe', ?)", uid, nowIso());
+        imported.push({ id: uid, nickname, pin, avatar });
+      }
+    });
+
+    return {
+      imported,
+      count: imported.length,
+      skipped,
+      class_id: c.id,
+      class_name: c.name,
+      invite_code: c.invite_code,
+    };
+  });
+
+  // ---------- Оқушының жеке оқу портфолиосы ----------
+  r.get('/api/teacher/students/:id/portfolio', T, ({ user, params }) => {
+    const s = ownStudent(db, user, params.id);
+    const cls = db.get('SELECT c.* FROM classes c JOIN class_members m ON m.class_id = c.id WHERE m.user_id = ?', s.id);
+    const tree = computeStudentTreeStage(db, s.id);
+    const xp = totalXp(db, s.id);
+
+    const shelfBooks = db.all(`
+      SELECT b.id, b.title, b.author, b.cover_color, b.cover_emoji, b.genre,
+             sh.status, sh.current_page, COALESCE(sh.total_pages, b.total_pages, 100) AS total_pages,
+             sh.goal_text, sh.started_at, sh.finished_at,
+             ROUND(100.0 * sh.current_page / NULLIF(COALESCE(sh.total_pages, b.total_pages, 100), 0)) AS percent
+      FROM shelf sh JOIN books b ON b.id = sh.book_id
+      WHERE sh.user_id = ? ORDER BY sh.updated_at DESC
+    `, s.id);
+
+    const totalMinutes = db.get('SELECT COALESCE(SUM(minutes), 0) AS m FROM reading_logs WHERE user_id = ?', s.id)?.m || 0;
+    const readingDays = db.get('SELECT COUNT(DISTINCT log_date) AS d FROM reading_logs WHERE user_id = ?', s.id)?.d || 0;
+    const since7 = addDays(localDate(), -6);
+    const days7 = db.get('SELECT COUNT(DISTINCT log_date) AS d FROM reading_logs WHERE user_id = ? AND log_date >= ?', s.id, since7)?.d || 0;
+
+    const comprehensionAttempts = db.all(`
+      SELECT a.id, a.book_id, b.title AS book_title, a.score, a.total, a.total AS total_questions, a.percent,
+             (a.percent >= 60) AS passed, a.created_at
+      FROM comprehension_attempts a JOIN books b ON b.id = a.book_id
+      WHERE a.user_id = ? ORDER BY a.created_at DESC
+    `, s.id);
+    const compAvg = comprehensionAttempts.length
+      ? Math.round(comprehensionAttempts.reduce((acc, row) => acc + (row.percent || 0), 0) / comprehensionAttempts.length)
+      : null;
+
+    const analyses = db.all(`
+      SELECT a.id, a.book_id, b.title AS book_title, a.analysis_type, a.analysis_type AS analysis_kind,
+             a.title, a.content AS text, a.status, a.feedback, a.score, a.created_at, a.reviewed_at
+      FROM comprehension_analyses a JOIN books b ON b.id = a.book_id
+      WHERE a.user_id = ? ORDER BY a.created_at DESC
+    `, s.id);
+
+    const recentLogs = db.all(`
+      SELECT l.id, l.book_id, b.title AS book_title, l.page, l.minutes, l.note, l.log_date, l.created_at
+      FROM reading_logs l JOIN books b ON b.id = l.book_id
+      WHERE l.user_id = ? ORDER BY l.log_date DESC, l.created_at DESC LIMIT 15
+    `, s.id);
+
+    const teacherFeedbacks = db.all(`
+      SELECT f.id, f.message, f.created_at, f.seen, u.nickname AS teacher_name
+      FROM teacher_student_feedback f JOIN users u ON u.id = f.teacher_id
+      WHERE f.student_id = ? ORDER BY f.created_at DESC
+    `, s.id);
+
+    const weeklyTargetDays = s.weekly_days || 3;
+    const goalAchievementPct = Math.min(100, Math.round((days7 / weeklyTargetDays) * 100));
+
+    return {
+      student: {
+        id: s.id,
+        nickname: s.nickname,
+        avatar: s.avatar,
+        class_id: cls?.id || null,
+        class_name: cls?.name || null,
+        invite_code: cls?.invite_code || null,
+        created_at: s.created_at,
+        daily_minutes: s.daily_minutes || 15,
+        weekly_days: weeklyTargetDays,
+      },
+      metrics: {
+        xp,
+        finished_books: tree.finished_books,
+        total_pages: tree.total_pages,
+        total_minutes: totalMinutes,
+        reading_days: readingDays,
+        reading_days_7: days7,
+        goal_achievement_pct: goalAchievementPct,
+        comprehension_avg: compAvg,
+        comprehension_tests_count: comprehensionAttempts.length,
+        comprehension_analyses_count: analyses.length,
+      },
+      tree_stage: tree,
+      shelf: shelfBooks,
+      comprehension_attempts: comprehensionAttempts,
+      comprehension_analyses: analyses,
+      recent_logs: recentLogs,
+      feedbacks: teacherFeedbacks,
+    };
+  });
+
+  // ---------- Оқушыға жеке педагогикалық кері байланыс беру ----------
+  r.post('/api/teacher/students/:id/feedback', T, ({ user, params, body }) => {
+    const s = ownStudent(db, user, params.id);
+    const message = V.str(body.message, 'message', { min: 2, max: 1500 });
+    const cls = db.get('SELECT class_id FROM class_members WHERE user_id = ?', s.id);
+    const fid = db.run(
+      'INSERT INTO teacher_student_feedback(teacher_id, student_id, class_id, message, seen, created_at) VALUES (?, ?, ?, ?, 0, ?)',
+      user.id, s.id, cls?.class_id || null, message, nowIso()
+    ).lastInsertRowid;
+    return { ok: true, id: fid, message, created_at: nowIso() };
+  });
+
+  // ---------- Оқу белсенділігі төмендеген (At-Risk) оқушыларды анықтау ----------
+  r.get('/api/teacher/classes/:id/at-risk', T, ({ user, params }) => {
+    const c = ownClass(db, user, params.id);
+    const students = members(db, c.id);
+    const today = localDate();
+    const since7 = addDays(today, -6);
+
+    const atRiskList = [];
+    for (const s of students) {
+      const lastLog = db.get('SELECT MAX(log_date) AS d FROM reading_logs WHERE user_id = ?', s.id)?.d;
+      const days7 = db.get('SELECT COUNT(DISTINCT log_date) AS c FROM reading_logs WHERE user_id = ? AND log_date >= ?', s.id, since7)?.c || 0;
+      const userRow = db.get('SELECT weekly_days FROM users WHERE id = ?', s.id);
+      const targetDays = userRow?.weekly_days || 3;
+      const goalPct = Math.round((days7 / targetDays) * 100);
+
+      const compRow = db.get('SELECT AVG(percent) AS avg_score FROM comprehension_attempts WHERE user_id = ?', s.id);
+      const compAvg = compRow?.avg_score != null ? Math.round(compRow.avg_score) : null;
+
+      const reasons = [];
+      const reasonsKk = [];
+
+      if (!lastLog) {
+        reasons.push('never_read');
+        reasonsKk.push('Әлі бірде-бір рет кітап оқылымын тіркемеген');
+      } else {
+        const daysSince = Math.round((new Date(today) - new Date(lastLog)) / (1000 * 60 * 60 * 24));
+        if (daysSince >= 7) {
+          reasons.push('inactive_7d');
+          reasonsKk.push(`Соңғы ${daysSince} күн бойы оқылым тіркемеген (соңғы оқылымы: ${lastLog})`);
+        }
+      }
+
+      if (goalPct < 30) {
+        reasons.push('low_goal');
+        reasonsKk.push(`Апталық оқу мақсаты ${goalPct}% ғана орындалған (мақсат: ${targetDays} күн, оқығаны: ${days7} күн)`);
+      }
+
+      if (compAvg !== null && compAvg < 50) {
+        reasons.push('low_comprehension');
+        reasonsKk.push(`Кітапты түсіну тесттерінің орташа көрсеткіші төмен: ${compAvg}%`);
+      }
+
+      if (reasons.length > 0) {
+        let recommendation = 'Оқушыға ынталандырушы жеке пікір жазыңыз немесе қызықты жеңіл шығарма ұсыныңыз.';
+        if (reasons.includes('low_comprehension')) {
+          recommendation = 'Оқушыға мәтіннің негізгі идеясын түсінуге бағытталған қарапайым тапсырма беріңіз.';
+        }
+        atRiskList.push({
+          id: s.id,
+          nickname: s.nickname,
+          avatar: s.avatar,
+          last_log: lastLog || null,
+          days_7: days7,
+          goal_pct: goalPct,
+          comprehension_avg: compAvg,
+          reasons,
+          reasons_kk: reasonsKk,
+          recommendation,
+        });
+      }
+    }
+
+    return {
+      class_id: c.id,
+      class_name: c.name,
+      total_students: students.length,
+      at_risk_count: atRiskList.length,
+      at_risk_students: atRiskList,
+    };
+  });
+
+  // ---------- Сыныпта ең көп оқылған кітаптар ----------
+  r.get('/api/teacher/classes/:id/popular-books', T, ({ user, params }) => {
+    const c = ownClass(db, user, params.id);
+    const rows = db.all(`
+      SELECT b.id, b.title, b.author, b.genre, b.cover_color, b.cover_emoji,
+             COUNT(DISTINCT sh.user_id) AS total_readers,
+             SUM(CASE WHEN sh.status = 'reading' THEN 1 ELSE 0 END) AS currently_reading,
+             SUM(CASE WHEN sh.status = 'finished' THEN 1 ELSE 0 END) AS finished_count,
+             ROUND(AVG(CASE WHEN sh.total_pages > 0 THEN 100.0 * sh.current_page / sh.total_pages END)) AS avg_progress,
+             (SELECT ROUND(AVG(a.percent)) FROM comprehension_attempts a WHERE a.book_id = b.id AND a.user_id IN (${IN_CLASS})) AS avg_comprehension_score
+      FROM shelf sh
+      JOIN books b ON b.id = sh.book_id
+      WHERE sh.user_id IN (${IN_CLASS})
+      GROUP BY b.id
+      ORDER BY total_readers DESC, finished_count DESC
+      LIMIT 10
+    `, c.id, c.id);
+    return { popular_books: rows };
+  });
+
+  // ---------- Айлық және тоқсандық академиялық есептер ----------
+  r.get('/api/teacher/classes/:id/report', T, ({ user, params, query }) => {
+    const c = ownClass(db, user, params.id);
+    const period = query.period || 'q2';
+    const monthStr = query.month || localDate().slice(0, 7);
+
+    const curDate = new Date();
+    const curY = curDate.getFullYear();
+    const curM = curDate.getMonth() + 1;
+    let startYear = curM >= 8 ? curY : curY - 1;
+    let endYear = startYear + 1;
+
+    if (query.year) {
+      const qy = Number(query.year);
+      if (qy === startYear || qy === endYear) {
+        // matches current school year
+      } else if (qy < startYear) {
+        startYear = qy;
+        endYear = qy + 1;
+      } else {
+        startYear = qy - 1;
+        endYear = qy;
+      }
+    }
+
+    let startDate = `${startYear}-09-01`;
+    let endDate = `${endYear}-05-31`;
+    let periodTitle = '';
+
+    if (period === 'q1') {
+      startDate = `${startYear}-09-01`;
+      endDate = `${startYear}-10-31`;
+      periodTitle = `1-тоқсан (${startYear} ж. қыркүйек - қазан)`;
+    } else if (period === 'q2') {
+      startDate = `${startYear}-11-01`;
+      endDate = `${startYear}-12-31`;
+      periodTitle = `2-тоқсан (${startYear} ж. қараша - желтоқсан)`;
+    } else if (period === 'q3') {
+      startDate = `${endYear}-01-01`;
+      endDate = `${endYear}-03-31`;
+      periodTitle = `3-тоқсан (${endYear} ж. қаңтар - наурыз)`;
+    } else if (period === 'q4') {
+      startDate = `${endYear}-04-01`;
+      endDate = `${endYear}-05-31`;
+      periodTitle = `4-тоқсан (${endYear} ж. сәуір - мамыр)`;
+    } else if (period === 'month') {
+      startDate = `${monthStr}-01`;
+      endDate = `${monthStr}-31`;
+      periodTitle = `${monthStr} айының есебі`;
+    } else {
+      periodTitle = `${startYear}-${endYear} оқу жылының жылдық есебі`;
+    }
+
+    const students = members(db, c.id);
+    const inClause = students.length ? students.map((s) => s.id).join(',') : '0';
+
+    const logsAgg = db.get(`
+      SELECT COALESCE(SUM(page), 0) AS total_pages,
+             COALESCE(SUM(minutes), 0) AS total_minutes,
+             COUNT(DISTINCT user_id) AS active_students,
+             COUNT(DISTINCT log_date) AS total_reading_days
+      FROM reading_logs
+      WHERE user_id IN (${inClause}) AND log_date >= ? AND log_date <= ?
+    `, startDate, endDate);
+
+    const finishedCount = db.get(`
+      SELECT COUNT(*) AS c FROM shelf
+      WHERE user_id IN (${inClause}) AND status = 'finished'
+        AND finished_at >= ? AND finished_at <= ?
+    `, startDate + 'T00:00:00.000Z', endDate + 'T23:59:59.999Z')?.c || 0;
+
+    const compAgg = db.get(`
+      SELECT ROUND(AVG(percent)) AS avg_score,
+             COUNT(*) AS total_tests
+      FROM comprehension_attempts
+      WHERE user_id IN (${inClause}) AND created_at >= ? AND created_at <= ?
+    `, startDate + 'T00:00:00.000Z', endDate + 'T23:59:59.999Z');
+
+    const studentSummaries = students.map((s) => {
+      const sLogs = db.get(`
+        SELECT COALESCE(SUM(page), 0) AS pages, COALESCE(SUM(minutes), 0) AS minutes, COUNT(DISTINCT log_date) AS days
+        FROM reading_logs WHERE user_id = ? AND log_date >= ? AND log_date <= ?
+      `, s.id, startDate, endDate);
+      const sFin = db.get(`
+        SELECT COUNT(*) AS c FROM shelf WHERE user_id = ? AND status = 'finished' AND finished_at >= ? AND finished_at <= ?
+      `, s.id, startDate + 'T00:00:00.000Z', endDate + 'T23:59:59.999Z')?.c || 0;
+      const sComp = db.get(`
+        SELECT ROUND(AVG(percent)) AS avg_score, COUNT(*) AS count
+        FROM comprehension_attempts WHERE user_id = ? AND created_at >= ? AND created_at <= ?
+      `, s.id, startDate + 'T00:00:00.000Z', endDate + 'T23:59:59.999Z');
+      const tree = computeStudentTreeStage(db, s.id);
+      const sXp = totalXp(db, s.id);
+
+      let status = 'Тұрақты оқырман';
+      if ((sLogs.pages >= 80 || sFin >= 2) && (sComp?.avg_score || 0) >= 80) status = 'Үздік оқырман 🌟';
+      else if (sLogs.days < 3 && sLogs.pages < 20) status = 'Қолдауды қажет етеді ⚠️';
+
+      return {
+        id: s.id,
+        nickname: s.nickname,
+        avatar: s.avatar,
+        pages: sLogs.pages,
+        minutes: sLogs.minutes,
+        reading_days: sLogs.days,
+        finished_books: sFin,
+        comprehension_avg: sComp?.avg_score ?? null,
+        comprehension_tests: sComp?.count || 0,
+        tree_stage_no: tree.stage,
+        tree_stage_name: tree.name,
+        xp: sXp,
+        status,
+      };
+    });
+
+    const treeDistribution = [
+      { stage: 1, name: 'Тұқым', count: studentSummaries.filter(s => s.tree_stage_no === 1).length },
+      { stage: 2, name: 'Өскін', count: studentSummaries.filter(s => s.tree_stage_no === 2).length },
+      { stage: 3, name: 'Жас өркен', count: studentSummaries.filter(s => s.tree_stage_no === 3).length },
+      { stage: 4, name: 'Жас ағаш', count: studentSummaries.filter(s => s.tree_stage_no === 4).length },
+      { stage: 5, name: 'Жапырақты ағаш', count: studentSummaries.filter(s => s.tree_stage_no === 5).length },
+      { stage: 6, name: 'Гүлдеген ағаш', count: studentSummaries.filter(s => s.tree_stage_no === 6).length },
+      { stage: 7, name: 'Жемісті ағаш', count: studentSummaries.filter(s => s.tree_stage_no === 7).length },
+    ];
+
+    return {
+      meta: {
+        school: '№290 орта мектеп',
+        teacher_name: user.nickname,
+        class_name: c.name,
+        class_id: c.id,
+        period,
+        period_title: periodTitle,
+        start_date: startDate,
+        end_date: endDate,
+        academic_year: `${startYear}-${endYear}`,
+        generated_at: nowIso(),
+      },
+      totals: {
+        total_students: students.length,
+        active_students: logsAgg.active_students,
+        total_pages: logsAgg.total_pages,
+        total_minutes: logsAgg.total_minutes,
+        finished_books: finishedCount,
+        avg_pages_per_student: students.length ? Math.round(logsAgg.total_pages / students.length) : 0,
+        avg_minutes_per_student: students.length ? Math.round(logsAgg.total_minutes / students.length) : 0,
+        comprehension_avg: compAgg?.avg_score ?? null,
+        comprehension_tests_count: compAgg?.total_tests || 0,
+      },
+      tree_distribution: treeDistribution,
+      students: studentSummaries,
+    };
+  });
+
+  // ---------- Сыныптарды өзара салыстыру ----------
+  r.get('/api/teacher/classes-comparison', T, ({ user }) => {
+    const teacherClasses = db.all('SELECT * FROM classes WHERE teacher_id = ? ORDER BY name ASC', user.id);
+    const since7 = addDays(localDate(), -6);
+
+    const comparison = teacherClasses.map((cls) => {
+      const studs = members(db, cls.id);
+      const inClause = studs.length ? studs.map((s) => s.id).join(',') : '0';
+
+      const totalPages = db.get(`SELECT COALESCE(SUM(page), 0) AS p FROM reading_logs WHERE user_id IN (${inClause})`).p;
+      const totalMinutes = db.get(`SELECT COALESCE(SUM(minutes), 0) AS m FROM reading_logs WHERE user_id IN (${inClause})`).m;
+      const finishedBooks = db.get(`SELECT COUNT(*) AS c FROM shelf WHERE user_id IN (${inClause}) AND status = 'finished'`).c;
+      const active7 = db.get(`SELECT COUNT(DISTINCT user_id) AS c FROM reading_logs WHERE user_id IN (${inClause}) AND log_date >= ?`, since7).c;
+      const compAvg = db.get(`SELECT ROUND(AVG(percent)) AS a FROM comprehension_attempts WHERE user_id IN (${inClause})`).a;
+
+      let totalClassXp = 0;
+      for (const s of studs) totalClassXp += totalXp(db, s.id);
+      const avgXp = studs.length ? Math.round(totalClassXp / studs.length) : 0;
+
+      return {
+        id: cls.id,
+        name: cls.name,
+        level: cls.level,
+        invite_code: cls.invite_code,
+        total_students: studs.length,
+        active_students_7: active7,
+        activity_percent_7: studs.length ? Math.round((active7 / studs.length) * 100) : 0,
+        total_pages: totalPages,
+        avg_pages: studs.length ? Math.round(totalPages / studs.length) : 0,
+        total_minutes: totalMinutes,
+        finished_books: finishedBooks,
+        comprehension_avg: compAvg ?? null,
+        avg_xp: avgXp,
+      };
+    });
+
+    return { classes: comparison };
+  });
+
+  // ---------- Шолу: негізгі көрсеткіштер ----------
   r.get('/api/teacher/classes/:id/overview', T, ({ user, params }) => {
     const c = ownClass(db, user, params.id);
     const today = localDate();
@@ -253,17 +755,94 @@ export default function register(r, db) {
       { stage: 4, name: 'Ой қазынасы', count: students.filter((s) => s.stage_no === 4).length },
       { stage: 5, name: 'Кітап шыңы', count: students.filter((s) => s.stage_no === 5).length },
     ];
+    const tree_distribution_7 = [
+      { stage: 1, name: 'Тұқым', icon: '🌱', count: students.filter((s) => s.tree_stage_no === 1).length },
+      { stage: 2, name: 'Өскін', icon: '🌿', count: students.filter((s) => s.tree_stage_no === 2).length },
+      { stage: 3, name: 'Жас өркен', icon: '🎋', count: students.filter((s) => s.tree_stage_no === 3).length },
+      { stage: 4, name: 'Жас ағаш', icon: '🌳', count: students.filter((s) => s.tree_stage_no === 4).length },
+      { stage: 5, name: 'Жапырақты ағаш', icon: '🌲', count: students.filter((s) => s.tree_stage_no === 5).length },
+      { stage: 6, name: 'Гүлдеген ағаш', icon: '🌸', count: students.filter((s) => s.tree_stage_no === 6).length },
+      { stage: 7, name: 'Жемісті ағаш', icon: '🍎', count: students.filter((s) => s.tree_stage_no === 7).length },
+    ];
+    const at_risk_count = students.filter((s) => !s.last_log || s.goal_pct < 30 || (s.comprehension_avg !== null && s.comprehension_avg < 50)).length;
     return {
       class: { id: c.id, name: c.name, level: c.level, invite_code: c.invite_code, is_demo: !!c.is_demo },
-      activity, books, tasks, pending, students, stage_distribution,
+      activity, books, tasks, pending, students, stage_distribution, tree_distribution_7, at_risk_count,
+    };
+  });
+
+  // Сыныптық Smart Analytics API
+  r.get('/api/teacher/classes/:id/analytics', T, ({ user, params }) => {
+    const c = ownClass(db, user, params.id);
+    const today = localDate();
+    const ws = weekStart(today);
+    const lastWs = addDays(ws, -7);
+
+    const students = studentRows(db, c.id);
+    const memberIds = students.map((s) => s.id);
+    if (!memberIds.length) {
+      return {
+        class_name: c.name,
+        total_students: 0,
+        this_week: { pages: 0, minutes: 0, days: 0 },
+        last_week: { pages: 0, minutes: 0, days: 0 },
+        comparison: { delta_pages: 0, is_growth: true },
+        daily_bar: [],
+        genre_distribution: [],
+        top_readers: [],
+        recommendations: ['Сыныпқа оқушыларды қосып, оқу саяхатын бастаңыз.']
+      };
+    }
+
+    const inClause = memberIds.join(',');
+
+    const thisWeek = db.get(`SELECT COALESCE(SUM(page),0) as pages, COALESCE(SUM(minutes),0) as minutes, COUNT(DISTINCT log_date) as days FROM reading_logs WHERE user_id IN (${inClause}) AND log_date >= ?`, ws);
+    const lastWeek = db.get(`SELECT COALESCE(SUM(page),0) as pages, COALESCE(SUM(minutes),0) as minutes, COUNT(DISTINCT log_date) as days FROM reading_logs WHERE user_id IN (${inClause}) AND log_date >= ? AND log_date < ?`, lastWs, ws);
+
+    const deltaPages = thisWeek.pages - lastWeek.pages;
+
+    const weekLabels = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сб', 'Жс'];
+    const dailyBar = weekLabels.map((label, idx) => {
+      const d = addDays(ws, idx);
+      const row = db.get(`SELECT COALESCE(SUM(page),0) as pages, COUNT(DISTINCT user_id) as active_students FROM reading_logs WHERE user_id IN (${inClause}) AND log_date = ?`, d);
+      return { date: d, label, pages: row.pages, active_students: row.active_students, isToday: d === today };
+    });
+
+    const genres = db.all(`
+      SELECT COALESCE(NULLIF(b.genre, ''), 'Басқа') AS genre, COUNT(DISTINCT s.book_id) as books_count, COALESCE(SUM(l.page), 0) as pages
+      FROM shelf s JOIN books b ON b.id = s.book_id LEFT JOIN reading_logs l ON l.book_id = b.id AND l.user_id = s.user_id
+      WHERE s.user_id IN (${inClause}) GROUP BY genre ORDER BY pages DESC
+    `);
+
+    const topReaders = [...students].sort((a, b) => (b.xp || 0) - (a.xp || 0)).slice(0, 5);
+
+    const recommendations = [];
+    if (thisWeek.pages > lastWeek.pages) {
+      recommendations.push(`Сыныптың оқу белсенділігі өткен аптамен салыстырғанда ${deltaPages} бетке артты! Керемет педагогикалық қарқын. 📈`);
+    } else if (thisWeek.pages < lastWeek.pages && lastWeek.pages > 0) {
+      recommendations.push(`Осы аптадағы оқылым өткен аптадан сәл бәсеңдеді. Оқушыларға қысқа ойын миссиясын беру арқылы қызығушылықты қайта жандандыру ұсынылады. 💡`);
+    } else {
+      recommendations.push(`Сынып тұрақты қарқынмен оқып келеді. Ортақ «Білім бағы» миссиясын толықтыруға назар аударыңыз. 🌳`);
+    }
+
+    return {
+      class_name: c.name,
+      total_students: students.length,
+      this_week: thisWeek,
+      last_week: lastWeek,
+      comparison: { delta_pages: deltaPages, is_growth: deltaPages >= 0 },
+      daily_bar: dailyBar,
+      genre_distribution: genres,
+      top_readers: topReaders,
+      recommendations
     };
   });
 
   r.get('/api/teacher/classes/:id/export.csv', T, ({ user, params, res }) => {
     const c = ownClass(db, user, params.id);
     const rows = studentRows(db, c.id);
-    const head = ['Бүркеншік ат', 'Оқып жатқан кітап', 'Прогресс, %', 'Саяхат кезеңі', 'Аяқталған кітаптар', 'Оқу күндері (барлығы)', 'Оқу күндері (7 күн)', 'Белгіленген минут', 'Орындалған ойындар', 'Қабылданған жауаптар', 'Тексеруді күтетін', 'Күнделік жазбалары', 'XP (баға емес)', 'Соңғы жазба'];
-    const lines = [head, ...rows.map((s) => [s.nickname, s.current_book, s.percent, s.stage_name, s.finished_books, s.reading_days, s.reading_days_7, s.minutes, s.games_done, s.accepted, s.pending, s.diary_notes, s.xp, s.last_log])];
+    const head = ['Бүркеншік ат', 'Оқып жатқан кітап', 'Прогресс, %', 'Кітап ағашының сатысы', 'Түсіну нәтижесі, %', 'Оқу мақсаты, %', 'Аяқталған кітаптар', 'Оқу күндері (барлығы)', 'Оқу күндері (7 күн)', 'Белгіленген минут', 'Орындалған ойындар', 'Қабылданған жауаптар', 'Тексеруді күтетін', 'Күнделік жазбалары', 'XP (баға емес)', 'Соңғы жазба'];
+    const lines = [head, ...rows.map((s) => [s.nickname, s.current_book, s.percent, s.tree_stage_name || s.stage_name, s.comprehension_avg ?? '-', s.goal_pct + '%', s.finished_books, s.reading_days, s.reading_days_7, s.minutes, s.games_done, s.accepted, s.pending, s.diary_notes, s.xp, s.last_log])];
     const csv = '\uFEFF' + lines.map((l) => l.map(csvCell).join(';')).join('\r\n');
     res.writeHead(200, {
       'Content-Type': 'text/csv; charset=utf-8',
@@ -484,6 +1063,13 @@ export default function register(r, db) {
         'UPDATE responses SET status = ?, feedback = ?, reviewed_by = ?, reviewed_at = ?, seen_feedback = 0 WHERE id = ?',
         decision === 'accept' ? 'accepted' : 'returned', feedback, user.id, nowIso(), resp.id,
       );
+      const extra = parseJson(resp.extra, {});
+      if (extra.comprehension_analysis_id) {
+        db.run(
+          'UPDATE comprehension_analyses SET status = ?, feedback = ?, reviewed_by = ?, reviewed_at = ?, seen_feedback = 0 WHERE id = ?',
+          decision === 'accept' ? 'accepted' : 'returned', feedback, user.id, nowIso(), extra.comprehension_analysis_id
+        );
+      }
       let xp = 0;
       if (decision === 'accept') {
         // Бір тапсырма/кітап үшін рефлексия ұпайы бір-ақ рет

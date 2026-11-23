@@ -6,6 +6,8 @@
   <title>KitapTracker — Мектеп оқушыларының кітап оқуын ойын арқылы қызықтыратын веб-платформа</title>
   <meta name="description" content="KitapTracker: «Кітап әлеміне саяхат» — оқушыға бірден түсінікті, ойын тапсырмаларымен байланысқан интерактивті оқу ортасы.">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2d6a4f">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
 </head>
 <body>
@@ -22,33 +24,52 @@
         </div>
       </a>
 
-      <!-- Оқушы мәзірі (компьютерлік, 5 негізгі бөлім) -->
+      <!-- Оқушы мәзірі (ықшамдалған 6 негізгі бөлім) -->
       <nav class="desktop-nav" id="main-nav" aria-label="Басты мәзір" style="display:none;">
         <a href="#/world" class="nav-link" data-route="world" id="nav-world">🌍 Менің әлемім</a>
-        <a href="#/shelf" class="nav-link" data-route="shelf" id="nav-shelf">📖 Кітап сөресі</a>
+        <a href="#/shelf" class="nav-link" data-route="shelf" id="nav-shelf">📚 Кітап сөресі</a>
         <a href="#/diary" class="nav-link" data-route="diary" id="nav-diary">📝 Оқырман күнделігі</a>
+        <a href="#/tree" class="nav-link" data-route="tree" id="nav-tree">🌳 Кітап ағашы</a>
         <a href="#/play" class="nav-link" data-route="play" id="nav-play">🎯 Ойын алаңы</a>
-        <a href="#/mission" class="nav-link" data-route="mission" id="nav-mission">🌱 Ортақ миссия</a>
         <a href="#/achievements" class="nav-link" data-route="achievements" id="nav-achievements">🏆 Жетістіктерім</a>
       </nav>
 
       <!-- Мұғалім мәзірі (бөлек кабинет) -->
       <nav class="desktop-nav" id="teacher-nav" aria-label="Мұғалім мәзірі" style="display:none;">
         <a href="#/teacher/overview" class="nav-link" data-route="teacher-overview">📊 Шолу</a>
+        <a href="#/teacher/analytics" class="nav-link" data-route="teacher-analytics">📈 Аналитика</a>
+        <a href="#/teacher/comprehension" class="nav-link" data-route="teacher-comprehension">🧠 Түсіну & Талдау</a>
+        <a href="#/challenges" class="nav-link" data-route="challenges">🏆 Марафондар</a>
+        <a href="#/qr-library" class="nav-link" data-route="qr-library">🏷️ QR-Каталог</a>
         <a href="#/teacher/classes" class="nav-link" data-route="teacher-classes">🏫 Сыныптар</a>
         <a href="#/teacher/tasks" class="nav-link" data-route="teacher-tasks">✍️ Тапсырмалар</a>
         <a href="#/teacher/reviews" class="nav-link" data-route="teacher-reviews">📝 Тексеру</a>
         <a href="#/teacher/missions" class="nav-link" data-route="teacher-missions">🌳 Миссиялар</a>
+        <a href="#/ai-assistant" class="nav-link" data-route="ai-assistant">🤖 AI Көмекші</a>
+        <a href="#/research" class="nav-link" data-route="research">🔬 Ғылыми зерттеу</a>
+        <a href="#/teacher/admin" class="nav-link" data-route="teacher-admin">⚙️ Басқару</a>
       </nav>
 
-      <!-- Тіл және Профиль батырмалары -->
+      <!-- Оң жақ: Тіл, Хабарламалар, XP, Аватар және Профиль -->
       <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" id="btn-toggle-lang" aria-label="Тілді ауыстыру">RU</button>
+        <button class="btn btn-secondary btn-sm" id="btn-toggle-lang" aria-label="Тілді ауыстыру" title="Тілді ауыстыру">RU</button>
         <button class="btn btn-secondary btn-sm" id="btn-toggle-motion" title="Анимацияны азайту" aria-label="Анимация режимі">⚡</button>
-        <div id="user-profile-badge" style="display:none; align-items:center; gap:8px;">
-          <span id="user-avatar-span" style="font-size:22px;">🦊</span>
-          <span id="user-nickname-span" style="font-weight:700; font-size:14px;"></span>
-          <button class="btn btn-secondary btn-sm" id="btn-logout" title="Шығу">Шығу</button>
+        
+        <button class="header-notif-btn" id="btn-notifications" title="Хабарламалар мен мұғалім пікірлері" style="display:none;">
+          <span>🔔</span>
+          <span class="header-notif-badge" id="notif-badge-dot" style="display:none;"></span>
+        </button>
+
+        <a href="#/achievements" class="header-xp-pill" id="header-xp-badge" style="display:none;" title="Жинаған XP ұпайыңыз">
+          <span>✨</span>
+          <span id="header-xp-count">0</span>
+          <span>XP</span>
+        </a>
+
+        <div id="user-profile-badge" class="user-profile-chip" style="display:none;">
+          <span id="user-avatar-span" style="font-size:20px;">🦊</span>
+          <span id="user-nickname-span" style="font-weight:700; font-size:13px; color:var(--text-main);"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-logout" title="Жүйеден шығу" style="padding:4px 8px; font-size:12px; margin-left:4px;">Шығу</button>
         </div>
       </div>
     </div>
@@ -152,27 +173,27 @@
     </div>
   </main>
 
-  <!-- Мобильді төменгі мәзір (оқушы үшін тек 5 бөлім) -->
+  <!-- Мобильді төменгі мәзір (оқушы үшін негізгі 6 бөлім) -->
   <nav class="mobile-nav" id="mobile-nav" style="display:none;" aria-label="Мобильді мәзір">
     <a href="#/world" class="mobile-nav-item" data-route="world">
       <span class="icon">🌍</span>
       <span>Әлемім</span>
     </a>
     <a href="#/shelf" class="mobile-nav-item" data-route="shelf">
-      <span class="icon">📖</span>
+      <span class="icon">📚</span>
       <span>Сөре</span>
     </a>
     <a href="#/diary" class="mobile-nav-item" data-route="diary">
       <span class="icon">📝</span>
       <span>Күнделік</span>
     </a>
+    <a href="#/tree" class="mobile-nav-item" data-route="tree">
+      <span class="icon">🌳</span>
+      <span>Ағаш</span>
+    </a>
     <a href="#/play" class="mobile-nav-item" data-route="play">
       <span class="icon">🎯</span>
-      <span>Ойындар</span>
-    </a>
-    <a href="#/mission" class="mobile-nav-item" data-route="mission">
-      <span class="icon">🌱</span>
-      <span>Миссия</span>
+      <span>Ойын</span>
     </a>
     <a href="#/achievements" class="mobile-nav-item" data-route="achievements">
       <span class="icon">🏆</span>
@@ -185,6 +206,14 @@
     <a href="#/teacher/overview" class="mobile-nav-item" data-route="teacher-overview">
       <span class="icon">📊</span>
       <span>Шолу</span>
+    </a>
+    <a href="#/teacher/analytics" class="mobile-nav-item" data-route="teacher-analytics">
+      <span class="icon">📈</span>
+      <span>Аналитика</span>
+    </a>
+    <a href="#/teacher/comprehension" class="mobile-nav-item" data-route="teacher-comprehension">
+      <span class="icon">🧠</span>
+      <span>Түсіну</span>
     </a>
     <a href="#/teacher/classes" class="mobile-nav-item" data-route="teacher-classes">
       <span class="icon">🏫</span>
@@ -201,6 +230,14 @@
     <a href="#/teacher/missions" class="mobile-nav-item" data-route="teacher-missions">
       <span class="icon">🌳</span>
       <span>Миссия</span>
+    </a>
+    <a href="#/ai-assistant" class="mobile-nav-item" data-route="ai-assistant">
+      <span class="icon">🦉</span>
+      <span>AI</span>
+    </a>
+    <a href="#/research" class="mobile-nav-item" data-route="research">
+      <span class="icon">🔬</span>
+      <span>Зерттеу</span>
     </a>
   </nav>
 
@@ -245,5 +282,12 @@
   <div class="toast-container" id="toast-root"></div>
 
   <script type="module" src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

@@ -7,6 +7,8 @@ import { recompute, syncDailyXp } from './lib/progress.js';
 import { award } from './lib/xp.js';
 import { checkRewards } from './lib/rewards.js';
 import { addDays, localDate, nowIso } from './lib/util.js';
+import { DEFAULT_COMPREHENSION_TESTS } from './comprehension-data.js';
+import { QARA_SOZDER } from './data/qara-sozder.js';
 
 // Нақты шығармалар: мектеп оқушылары үшін бай кітапхана қоры (1-11 сыныптар)
 export const CATALOG = [
@@ -161,15 +163,16 @@ export const CATALOG = [
   {
     title: 'Қара сөздер',
     author: 'Абай Құнанбайұлы',
-    description: 'Абайдың адамгершілік, ғылым, еңбек және парасат туралы жазылған ой-толғаулары.',
+    description: 'Абайдың адамгершілік, ғылым, еңбек және парасат туралы жазылған ой-толғаулары (толық 45 қара сөз).',
     language: 'kk',
     genre: 'Философиялық проза',
     interests: 'философия,адамгершілік,ғылым',
     grade_min: 8,
     grade_max: 11,
-    total_pages: 120,
+    total_pages: 150,
     cover_color: '#4a3b2a',
-    cover_emoji: '🪶'
+    cover_emoji: '🪶',
+    chapters: QARA_SOZDER
   },
   {
     title: 'Абай жолы',
@@ -426,7 +429,8 @@ export function ensureCatalog(db) {
 
       if (b.chapters && b.chapters.length > 0) {
         const chCount = db.get('SELECT COUNT(*) AS c FROM chapters WHERE book_id = ?', bookId).c;
-        if (chCount === 0) {
+        if (chCount < b.chapters.length) {
+          db.run('DELETE FROM chapters WHERE book_id = ?', bookId);
           b.chapters.forEach((c, idx) => {
             db.run(
               'INSERT INTO chapters(book_id, idx, title, body, page_start, page_end) VALUES (?,?,?,?,?,?)',
@@ -437,6 +441,7 @@ export function ensureCatalog(db) {
       }
     }
     ensureQuizzes(db);
+    ensureComprehensionTests(db);
   });
 }
 
@@ -594,6 +599,23 @@ export function ensureQuizzes(db) {
           `INSERT INTO character_quizzes(book_id, character_name, character_avatar, character_intro, questions, xp_reward, crystals_reward, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           book.id, q.character_name, q.character_avatar, q.character_intro, JSON.stringify(q.questions), q.xp_reward, q.crystals_reward, now
+        );
+      }
+    }
+  }
+}
+
+export function ensureComprehensionTests(db) {
+  const now = nowIso();
+  for (const t of DEFAULT_COMPREHENSION_TESTS) {
+    const book = db.get('SELECT id FROM books WHERE title = ?', t.bookTitle);
+    if (book) {
+      const existing = db.get('SELECT id FROM comprehension_tests WHERE book_id = ?', book.id);
+      if (!existing) {
+        db.run(
+          `INSERT INTO comprehension_tests(book_id, title, description, questions, xp_reward, crystals_reward, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          book.id, t.title, t.description, JSON.stringify(t.questions), t.xp_reward, t.crystals_reward, now, now
         );
       }
     }
