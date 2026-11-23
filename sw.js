@@ -1,5 +1,5 @@
-// KitapTracker — Офлайн және мобильді PWA Service Worker (v2)
-const CACHE_NAME = 'kitaptracker-v2';
+// KitapTracker — Офлайн және мобильді PWA Service Worker (v3)
+const CACHE_NAME = 'kitaptracker-v3';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
