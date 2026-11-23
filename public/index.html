@@ -281,11 +281,22 @@
   <div id="modal-root"></div>
   <div class="toast-container" id="toast-root"></div>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=20261124_03"></script>
   <script>
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          if (key.includes('v1') || key !== 'kitaptracker-v2') {
+            caches.delete(key);
+          }
+        });
+      });
+    }
     if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          reg.update();
+        }).catch(() => {});
       });
     }
   </script>
