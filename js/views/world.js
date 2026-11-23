@@ -59,9 +59,10 @@ function renderDashboard(container, { world, user, analytics, achievements, chal
     has_quiz = false,
     last_reward = null,
     feedback = null,
-    abai_book_id = 5
+    abai_book_id = 8
   } = world || {};
 
+  const abaiBookId = abai_book_id || 8;
   const currentBook = current ? current.book : null;
   const shelf = current ? current.shelf : null;
   const studentName = user?.nickname || 'Құлахметова Аягөз';
